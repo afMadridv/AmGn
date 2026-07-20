@@ -1,0 +1,21 @@
+# Sitio estático: no hay nada que compilar, se publica la carpeta tal cual.
+[build]
+  publish = "."
+  command = ""
+
+# El HTML no se cachea, para que un cambio se vea al recargar. Los ficheros
+# de css/js sí, pero poco: el sitio es pequeño y conviene que llegue fresco.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
