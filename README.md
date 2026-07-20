@@ -64,6 +64,19 @@ Vercel o Cloudflare Pages. Le mandas el enlace y listo.
   entra con tu correo y contraseña, escribe la nota, eliges flor y color,
   *Sembrar*. Aparece al instante en el teléfono de ella.
 
+## Música
+
+La playlist de Spotify se lee en vivo desde `SPOTIFY_PLAYLIST` (config.js): si
+añades canciones, aparecen solas. Límites que impone Spotify, no el código:
+
+- Los navegadores no dejan sonar audio sin un gesto del usuario. Arranca con el
+  toque del ramo; en iOS puede hacer falta tocar ▶ dentro del reproductor.
+- Sin sesión de Spotify iniciada suenan adelantos de 30 s. Con sesión (mejor
+  Premium) suena la canción completa.
+- No hay control de volumen en la IFrame API: "silenciar" pausa.
+- El nombre de la canción no se puede leer por código (el iframe es de otro
+  dominio). Se ve abriendo el panel, que es el reproductor de Spotify.
+
 ## Modo demo
 
 Si `SUPABASE_ANON_KEY` queda vacío, la app guarda en `localStorage` — sirve para
