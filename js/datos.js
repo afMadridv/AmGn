@@ -51,10 +51,20 @@
   /* ====================================================================== */
   const Remoto = {
     async iniciar() {
+      // La sesión del portal NO se guarda: vive en memoria y muere al cerrar o
+      // recargar la página. Así, si ella abre el enlace en tu teléfono, entra
+      // al jardín como cualquiera y el portal le pide la contraseña.
       sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true },
+        auth: { persistSession: false, autoRefreshToken: false },
         realtime: { params: { eventsPerSecond: 5 } }
       });
+
+      // Barre lo que hubiera dejado guardado una versión anterior de la app.
+      try {
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('sb-') || k.startsWith('supabase.auth'))
+          .forEach(k => localStorage.removeItem(k));
+      } catch { /* modo privado sin localStorage: nada que barrer */ }
     },
 
     async listar() {
@@ -122,7 +132,10 @@
     },
     _guardar(v) { localStorage.setItem(LLAVE, JSON.stringify(v)); },
 
-    async iniciar() {},
+    async iniciar() {
+      // Igual que en Supabase: cada visita empieza sin sesión.
+      sessionStorage.removeItem('patico:sesion');
+    },
 
     async listar() { return this._leer().map(aFlor); },
 

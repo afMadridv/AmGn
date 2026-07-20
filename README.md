@@ -60,6 +60,10 @@ Vercel o Cloudflare Pages. Le mandas el enlace y listo.
 ## Cómo se usa
 
 - **Ella**: abre el enlace, toca el ramo, entra al jardín, toca una flor y lee.
+La sesión del portal no se guarda: cada vez que se abre o recarga la página
+empieza cerrada. Si le pasas tu teléfono con el jardín abierto, el portal le
+pedirá la contraseña.
+
 - **Tú**: en el jardín, toca la **esquina inferior derecha** (botón invisible),
   entra con tu correo y contraseña, escribe la nota, eliges flor y color,
   *Sembrar*. Aparece al instante en el teléfono de ella.
