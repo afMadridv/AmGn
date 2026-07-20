@@ -19,6 +19,11 @@ create index if not exists flores_created_at_idx on public.flores (created_at);
 -- Seguridad a nivel de fila
 --   · cualquiera (anon) PUEDE LEER  -> ella entra por el enlace, sin cuenta
 --   · solo usuarios autenticados PUEDEN escribir/borrar -> el portal
+--
+-- OJO: esto confía en que nadie más pueda registrarse, porque la clave
+-- pública viaja en el frontend. Apaga los registros en Authentication →
+-- Sign In / Providers → Email → Enable Sign Ups, y ejecuta después
+-- `blindar-escritura.sql` para atar la escritura a tu correo.
 -- --------------------------------------------------------------------------
 alter table public.flores enable row level security;
 
