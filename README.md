@@ -68,6 +68,24 @@ pedirá la contraseña.
   entra con tu correo y contraseña, escribe la nota, eliges flor y color,
   *Sembrar*. Aparece al instante en el teléfono de ella.
 
+## El cielo sigue la hora de Colombia
+
+`js/cielo.js` mira la hora en `America/Bogota` — da igual dónde esté el
+teléfono que abra el enlace — y pone el jardín en uno de cuatro momentos:
+
+| momento   | horario     | qué se ve                                          |
+|-----------|-------------|----------------------------------------------------|
+| amanecer  | 5:00–7:00   | cielo malva y durazno, sol grande y naranja saliendo por la izquierda |
+| día       | 7:00–16:30  | cielo azul, sol alto y blanco, nubes blancas       |
+| atardecer | 16:30–18:30 | cielo rosa y ámbar, sol poniéndose por la derecha  |
+| noche     | 18:30–5:00  | cielo azul profundo, luna llena con sus cráteres y cielo estrellado |
+
+El sol y la luna no están clavados: recorren un arco según la hora, salen bajos
+por la izquierda, culminan arriba y se ponen por la derecha.
+
+Para ver otra hora sin esperarla, añade `?hora=` a la URL: `?hora=22` (noche),
+`?hora=6` (amanecer), `?hora=17.6` (atardecer).
+
 ## Música
 
 La playlist de Spotify se lee en vivo desde `SPOTIFY_PLAYLIST` (config.js): si

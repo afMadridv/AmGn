@@ -25,14 +25,29 @@
 </section>
 
 <!-- ============ EL JARDÍN ============ -->
-<main id="jardin" class="jardin" hidden>
+<main id="jardin" class="jardin" data-momento="dia" hidden>
   <div class="cielo">
-    <div class="sol"></div>
+    <!-- Una capa por momento del día; se cruzan con opacidad -->
+    <div class="capa-cielo" data-fase="amanecer"></div>
+    <div class="capa-cielo" data-fase="dia"></div>
+    <div class="capa-cielo" data-fase="atardecer"></div>
+    <div class="capa-cielo" data-fase="noche"></div>
+
+    <div class="estrellas" id="estrellas" aria-hidden="true"></div>
+
+    <div class="astro astro--sol"  id="sol"  aria-hidden="true"></div>
+    <div class="astro astro--luna" id="luna" aria-hidden="true">
+      <span class="crater c1"></span><span class="crater c2"></span>
+      <span class="crater c3"></span><span class="crater c4"></span>
+    </div>
+
     <div class="nube nube--1"></div>
     <div class="nube nube--2"></div>
     <div class="nube nube--3"></div>
+    <div class="nube nube--4"></div>
   </div>
 
+  <div class="colinas colinas--lejos"></div>
   <div class="colinas"></div>
 
   <!-- Campo de tierra: aquí viven las flores -->
@@ -63,6 +78,9 @@
   </div>
 
   <p class="pista" id="pista">Toca una flor para leer su nota</p>
+
+  <!-- Tinte de la escena: unifica la luz de todo el jardín según la hora -->
+  <div class="tinte" aria-hidden="true"></div>
 
   <!-- Música: playlist de Spotify -->
   <div class="musica" id="musica" data-sonando="no">
@@ -161,6 +179,7 @@
 <script src="js/flores-svg.js"></script>
 <script src="js/datos.js"></script>
 <script src="js/app.js"></script>
+<script src="js/cielo.js"></script>
 <script src="js/musica.js"></script>
 </body>
 </html>

@@ -136,7 +136,7 @@
     b.style.setProperty('--retraso', (Math.random() * -3).toFixed(2) + 's');
     // Las notas viejas guardaban un emoji; si la clave no está en el catálogo
     // se pinta tal cual para no perder nada.
-    b.innerHTML = `<span class="flor-tallo"></span>
+    b.innerHTML = `${FloresSVG.tallo(flor.id)}
       <span class="flor-cara">${
         FloresSVG.existe(flor.especie) ? FloresSVG.img(flor.especie, 54, false, flor.hue)
                                        : flor.especie

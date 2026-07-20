@@ -478,5 +478,30 @@
   if (document.body) inyectarFiltro();
   else document.addEventListener('DOMContentLoaded', inyectarFiltro);
 
-  window.FloresSVG = { flor, img, ramo, ESPECIES, existe: c => Boolean(porClave[c]) };
+  /* ----------------------------------------------------------------------
+     Tallo del jardín: curvo y con una hoja, en vez de un palito recto. La
+     curva sale de la semilla (el id de la nota), así cada flor tiene su
+     forma y no cambia al recargar.
+     ---------------------------------------------------------------------- */
+  function tallo(semilla) {
+    let s = 0;
+    for (let i = 0; i < String(semilla).length; i++) {
+      s = (s * 31 + String(semilla).charCodeAt(i)) % 1000;
+    }
+    const curva = ((s % 7) - 3) * 1.5;        // hacia dónde se dobla
+    const lado  = (s >> 3) % 2 ? 1 : -1;      // de qué lado sale la hoja
+    const altoHoja = 20 + (s % 5) * 2;
+
+    return `<svg class="flor-tallo" viewBox="0 0 22 46" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M11,0 C ${11 + curva},13 ${11 - curva},28 11,46"
+            fill="none" stroke="#2f6129" stroke-width="4.6" stroke-linecap="round"/>
+      <path d="M11,0 C ${11 + curva},13 ${11 - curva},28 11,46"
+            fill="none" stroke="#5c9c47" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M11,${altoHoja} c ${lado * 9},-4 ${lado * 11},-9 ${lado * 10},-13
+               c ${lado * -7},1 ${lado * -10},6 ${lado * -10},13 Z"
+            fill="#4d9140" stroke="#2f6129" stroke-width="1.1" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  window.FloresSVG = { flor, img, ramo, tallo, ESPECIES, existe: c => Boolean(porClave[c]) };
 })();
