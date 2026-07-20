@@ -52,9 +52,16 @@ button { font-family: inherit; color: inherit; }
   background:
     radial-gradient(120% 90% at 50% 10%, #fff6fa 0%, #fdeef2 45%, #efe4f3 100%);
   z-index: 100;
-  transition: opacity .8s ease, transform .8s ease;
+  transition: opacity .9s ease, transform .9s cubic-bezier(.5, 0, .75, 0), filter .9s ease;
 }
-.portada.saliendo { opacity: 0; transform: scale(1.08); pointer-events: none; }
+/* Al entrar al jardín la portada se acerca y se desenfoca, como si la
+   cámara atravesara el ramo. */
+.portada.saliendo {
+  opacity: 0;
+  transform: scale(1.22);
+  filter: blur(6px);
+  pointer-events: none;
+}
 
 .portada-halo {
   position: absolute;
@@ -441,9 +448,29 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 }
 @keyframes bailar { 0%,100% { rotate: -5deg; } 50% { rotate: 5deg; } }
 
-.flor-plantada.brotando { animation: brotar .9s cubic-bezier(.2,1.3,.4,1) 1, bailar var(--bailes,3s) ease-in-out infinite .9s; }
-@keyframes brotar { 0% { scale: 0; opacity: 0; } 60% { scale: calc(var(--escala,1) * 1.3); opacity: 1; } 100% { scale: var(--escala,1); } }
-.flor-plantada.marchita { transition: scale .45s, opacity .45s; scale: 0; opacity: 0; }
+/* Brotar: sale del suelo, se pasa de largo y se asienta. */
+.flor-plantada.brotando {
+  animation: brotar 1.1s cubic-bezier(.22, 1.4, .36, 1) 1,
+             bailar var(--bailes, 3s) ease-in-out infinite 1.1s;
+}
+@keyframes brotar {
+  0%   { scale: 0;    opacity: 0; rotate: -14deg; translate: -50% -70%; }
+  45%  { opacity: 1; }
+  62%  { scale: calc(var(--escala, 1) * 1.22); rotate: 6deg; }
+  80%  { scale: calc(var(--escala, 1) * .95); rotate: -3deg; }
+  100% { scale: var(--escala, 1); rotate: 0deg; translate: -50% -100%; }
+}
+/* El tallo se estira desde la tierra mientras la flor brota. */
+.flor-plantada.brotando .flor-tallo {
+  animation: estirar 1.1s cubic-bezier(.22, 1.1, .36, 1) both;
+  transform-origin: bottom center;
+}
+@keyframes estirar { from { scale: .7 .2; } to { scale: 1 1; } }
+
+.flor-plantada.marchita {
+  transition: scale .5s cubic-bezier(.5,0,.75,0), opacity .5s ease, rotate .5s ease;
+  scale: 0; opacity: 0; rotate: 24deg;
+}
 
 /* ------------------------------------------------ patico caminando ------ */
 .patico {
@@ -644,11 +671,28 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   border-radius: var(--radio);
   background: var(--crema);
   box-shadow: var(--sombra);
-  transform: translateY(22px) scale(.96);
+  transform: translateY(26px) scale(.94);
   opacity: 0;
-  transition: transform .3s cubic-bezier(.2,.9,.3,1.1), opacity .3s ease;
+  /* Curva de salida suave y larga: entra rápido y frena al final, que es lo
+     que hace que un modal se sienta liviano en vez de brusco. */
+  transition: transform .42s cubic-bezier(.16, 1, .3, 1), opacity .3s ease;
 }
 .modal.abierto .tarjeta { transform: none; opacity: 1; }
+
+/* El contenido de la nota entra escalonado detrás de la tarjeta. */
+.modal.abierto .tarjeta--nota > * {
+  animation: subir .5s cubic-bezier(.16, 1, .3, 1) both;
+}
+.modal.abierto .tarjeta--nota > .nota-flor    { animation-delay: .06s; }
+.modal.abierto .tarjeta--nota > .nota-especie { animation-delay: .12s; }
+.modal.abierto .tarjeta--nota > .nota-fecha   { animation-delay: .16s; }
+.modal.abierto .tarjeta--nota > .nota-figura  { animation-delay: .2s; }
+.modal.abierto .tarjeta--nota > .nota-texto   { animation-delay: .26s; }
+.modal.abierto .tarjeta--nota > .cerrar       { animation-delay: .3s; }
+@keyframes subir {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
 
 .cerrar {
   position: absolute; top: 8px; right: 12px;
@@ -670,11 +714,41 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 .tarjeta--nota { text-align: center; background: linear-gradient(180deg, #fffdf8, #fdf3e6); }
 .nota-flor { display: grid; place-items: center; }
 .nota-flor .svg-flor { width: clamp(78px, 26vw, 104px); height: auto; }
+
+/* El nombre de la especie, bajo el dibujo. */
+.nota-especie {
+  margin: 6px 0 0;
+  font-family: var(--serif);
+  font-size: clamp(1.05rem, 4vw, 1.3rem);
+  font-style: italic;
+  color: #8a6b76;
+}
 .nota-fecha {
-  display: block; margin: 10px 0 16px;
-  font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+  display: block; margin: 4px 0 16px;
+  font-size: .74rem; letter-spacing: .12em; text-transform: uppercase;
   color: var(--tinta-suave);
 }
+
+/* La foto, con aire de copia revelada: marco claro y sombra corta. */
+.nota-figura {
+  margin: 0 0 16px;
+  padding: 7px 7px 9px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(70, 46, 40, .18);
+  rotate: -.7deg;
+}
+.nota-figura[hidden] { display: none; }
+.nota-foto {
+  display: block;
+  width: 100%;
+  max-height: 46dvh;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #f1e8dc;
+  animation: revelar .7s ease both;
+}
+@keyframes revelar { from { opacity: 0; scale: 1.04; } to { opacity: 1; scale: 1; } }
 .nota-texto {
   margin: 0;
   font-family: var(--serif);
@@ -711,6 +785,44 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 }
 .contador { display: block; margin-top: 4px; text-align: right; font-size: .72rem; color: var(--tinta-suave); }
 
+/* ---- elegir la foto ---- */
+.soltar {
+  display: grid; place-items: center;
+  min-height: 96px;
+  padding: 14px;
+  border: 1.5px dashed #ddc9b6;
+  border-radius: 14px;
+  background: #fffaf3;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .2s ease, background .2s ease, transform .2s ease;
+}
+.soltar:hover { border-color: var(--acento); background: #fff6f8; }
+.soltar:active { transform: scale(.99); }
+.soltar.con-foto { padding: 8px; border-style: solid; border-color: #e5d8cc; }
+.soltar.cargando { opacity: .6; pointer-events: none; }
+.soltar-txt { font-size: .82rem; color: var(--tinta-suave); }
+.soltar.con-foto .soltar-txt { margin-top: 8px; font-size: .72rem; }
+
+.foto-previa {
+  display: block;
+  width: 100%;
+  max-height: 30dvh;
+  object-fit: cover;
+  border-radius: 9px;
+  animation: revelar .5s ease both;
+}
+.foto-previa[hidden] { display: none; }
+
+.quitar-foto {
+  margin-top: 8px;
+  border: 0; background: none;
+  font-size: .76rem; color: #b3261e;
+  cursor: pointer; padding: 4px 2px;
+  text-decoration: underline;
+}
+.quitar-foto[hidden] { display: none; }
+
 .selector { display: flex; flex-wrap: wrap; gap: 8px; }
 .opcion {
   display: grid; place-items: center;
@@ -718,20 +830,37 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   border: 1.5px solid #e5d8cc; border-radius: 12px;
   background: #fff; font-size: 1.35rem; line-height: 1;
   cursor: pointer;
-  transition: transform .15s ease, border-color .15s ease;
+  transition: transform .22s cubic-bezier(.16,1,.3,1),
+              border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
-.opcion .svg-flor { width: 34px; height: 34px; }
+.opcion:hover { border-color: #e9b9c8; transform: translateY(-2px); }
+.opcion .svg-flor { width: 34px; height: 34px; transition: scale .2s ease; }
+.opcion:hover .svg-flor { scale: 1.08; }
 .opcion:active { transform: scale(.92); }
-.opcion.activa { border-color: var(--acento); background: #fdeef2; transform: scale(1.06); }
+.opcion.activa {
+  border-color: var(--acento);
+  background: #fdeef2;
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(216,116,143,.28);
+}
+/* Un latido corto al elegir, para confirmar el toque. */
+.opcion.activa { animation: elegida .4s cubic-bezier(.22,1.3,.36,1); }
+@keyframes elegida {
+  0%   { transform: scale(1); }
+  55%  { transform: scale(1.2); }
+  100% { transform: scale(1.08); }
+}
 
 .btn {
   border: 0; border-radius: 999px;
   padding: 13px 24px;
   font-size: 1rem; font-weight: 600;
   cursor: pointer;
-  transition: transform .15s ease, opacity .15s ease;
+  transition: transform .2s cubic-bezier(.16,1,.3,1),
+              opacity .15s ease, box-shadow .2s ease, background .2s ease;
 }
-.btn:active { transform: scale(.96); }
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(.96) translateY(0); }
 .btn:disabled { opacity: .55; cursor: wait; }
 .btn--principal { width: 100%; background: var(--acento); color: #fff; box-shadow: 0 8px 18px rgba(216,116,143,.34); }
 .btn--principal:hover { background: var(--acento-osc); }
@@ -758,6 +887,7 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 }
 .mini { display: grid; place-items: center; width: 26px; }
 .mini .svg-flor { width: 26px; height: 26px; }
+.mini-foto { color: var(--acento); font-size: .78rem; }
 .mini-txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini-borrar { border: 0; background: none; font-size: 1.2rem; color: #b3261e; cursor: pointer; }
 
@@ -771,10 +901,10 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   background: rgba(46,32,30,.9); color: #fff;
   font-size: .88rem;
   opacity: 0; pointer-events: none;
-  transition: opacity .3s ease, translate .3s ease;
+  transition: opacity .3s ease, translate .42s cubic-bezier(.22,1.3,.36,1);
   z-index: 950;
 }
-.brindis.visible { opacity: 1; translate: -50% -8px; }
+.brindis.visible { opacity: 1; translate: -50% -10px; }
 
 /* ==========================================================================
    4. AJUSTES POR PANTALLA

@@ -110,7 +110,13 @@
   <article class="tarjeta tarjeta--nota">
     <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
     <div class="nota-flor" id="notaFlor"></div>
+    <p class="nota-especie" id="notaEspecie"></p>
     <time class="nota-fecha" id="notaFecha"></time>
+    <figure class="nota-figura" id="notaFigura" hidden>
+      <!-- Sin loading="lazy": la figura arranca en display:none y el navegador
+           no llega a programar la carga diferida, así que nunca aparecía. -->
+      <img class="nota-foto" id="notaFoto" alt="Foto de la nota" decoding="async">
+    </figure>
     <p class="nota-texto" id="notaTexto"></p>
   </article>
 </div>
@@ -147,6 +153,16 @@
         placeholder="Escribe lo que quieras que ella lea…"></textarea>
       <small class="contador"><span id="contador">0</span>/1000</small>
     </label>
+
+    <fieldset class="campo">
+      <span>Foto (opcional)</span>
+      <label class="soltar" id="zonaFoto">
+        <input type="file" id="fotoInput" accept="image/*" hidden>
+        <img class="foto-previa" id="fotoPrevia" alt="" hidden>
+        <span class="soltar-txt" id="fotoTexto">Toca para elegir una foto</span>
+      </label>
+      <button type="button" class="quitar-foto" id="btnQuitarFoto" hidden>Quitar foto</button>
+    </fieldset>
 
     <fieldset class="campo">
       <span>Flor</span>

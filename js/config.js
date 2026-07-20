@@ -4,7 +4,7 @@
    1. Pega aquí la URL y la clave "anon / publishable" de tu proyecto Supabase.
       Supabase → Project Settings → API.
    2. La anon key es PÚBLICA por diseño: lo que protege los datos es el RLS
-      definido en sql/schema.sql. Nunca pongas aquí la service_role key.
+      definido en sql/instalar.sql. Nunca pongas aquí la service_role key.
    3. Si dejas SUPABASE_ANON_KEY vacío, la app cae automáticamente a
       localStorage (modo demo, sin tiempo real).
    ========================================================================== */
@@ -24,13 +24,31 @@ window.CONFIG = {
   // están dibujadas en vector, no son emojis. Para añadir una especie nueva,
   // agrega una entrada a ese archivo.
 
-  // Tintes que se aplican a la flor (filtro CSS hue-rotate)
+  // Tintes de la flor. El número es el giro de tono que se aplica dentro del
+  // dibujo; el color final depende también de la especie, así que un mismo
+  // tinte no se ve igual en una rosa que en un girasol.
   COLORES: [
-    { nombre: 'natural',  hue: 0   },
-    { nombre: 'rosa',     hue: 320 },
-    { nombre: 'lila',     hue: 260 },
-    { nombre: 'azul',     hue: 200 },
-    { nombre: 'menta',    hue: 140 },
-    { nombre: 'ámbar',    hue: 40  }
-  ]
+    { nombre: 'natural',   hue: 0   },
+    { nombre: 'coral',     hue: 20  },
+    { nombre: 'ámbar',     hue: 40  },
+    { nombre: 'dorado',    hue: 60  },
+    { nombre: 'lima',      hue: 90  },
+    { nombre: 'verde',     hue: 120 },
+    { nombre: 'menta',     hue: 150 },
+    { nombre: 'turquesa',  hue: 175 },
+    { nombre: 'celeste',   hue: 195 },
+    { nombre: 'azul',      hue: 215 },
+    { nombre: 'índigo',    hue: 240 },
+    { nombre: 'lila',      hue: 265 },
+    { nombre: 'violeta',   hue: 285 },
+    { nombre: 'magenta',   hue: 305 },
+    { nombre: 'rosa',      hue: 325 },
+    { nombre: 'frambuesa', hue: 345 }
+  ],
+
+  // Fotos en las notas. Necesita el bucket de Supabase Storage creado con
+  // sql/instalar.sql. Si no existe, la app sigue funcionando sin fotos.
+  BUCKET_FOTOS: 'notas',
+  FOTO_MAX_LADO: 1600,   // se reescala antes de subir, para no gastar datos
+  FOTO_CALIDAD: 0.82
 };

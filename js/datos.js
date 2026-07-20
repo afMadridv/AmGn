@@ -25,7 +25,11 @@
   const TABLA = 'flores';
   const LLAVE = 'patico:flores';
 
-  const usaSupabase = Boolean(
+  // Con ?demo=1 la app trabaja contra localStorage aunque haya credenciales:
+  // sirve para probar cambios sin tocar el jardín de verdad.
+  const forzarDemo = new URLSearchParams(location.search).get('demo') === '1';
+
+  const usaSupabase = !forzarDemo && Boolean(
     CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase
   );
 
@@ -40,6 +44,7 @@
       texto:  fila.texto,
       especie: fila.especie || fila.emoji || 'lirio',
       hue:    Number(fila.hue) || 0,
+      foto:   fila.foto || null,
       x:      Number(fila.x),
       y:      Number(fila.y),
       fecha:  fila.created_at || fila.fecha || new Date().toISOString()
@@ -76,10 +81,32 @@
 
     async sembrar(flor) {
       const { data, error } = await sb.from(TABLA).insert({
-        texto: flor.texto, especie: flor.especie, hue: flor.hue, x: flor.x, y: flor.y
+        texto: flor.texto, especie: flor.especie, hue: flor.hue,
+        foto: flor.foto || null, x: flor.x, y: flor.y
       }).select().single();
       if (error) throw error;
       return aFlor(data);
+    },
+
+    // Sube la imagen ya reducida y devuelve su URL pública.
+    async subirFoto(archivo) {
+      const ext = (archivo.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+      const nombre = Date.now().toString(36) + '-' +
+                     Math.random().toString(36).slice(2, 8) + '.' + ext;
+
+      const { error } = await sb.storage
+        .from(CFG.BUCKET_FOTOS)
+        .upload(nombre, archivo, { contentType: archivo.type, upsert: false });
+
+      if (error) {
+        // El fallo más común es no haber creado el bucket todavía.
+        if (/bucket/i.test(error.message)) {
+          throw new Error('Falta crear el bucket: corre sql/instalar.sql');
+        }
+        throw error;
+      }
+      const { data } = sb.storage.from(CFG.BUCKET_FOTOS).getPublicUrl(nombre);
+      return data.publicUrl;
     },
 
     async borrar(id) {
@@ -148,6 +175,16 @@
       return aFlor(nueva);
     },
 
+    // En demo la foto se queda como data URL dentro del propio navegador.
+    async subirFoto(archivo) {
+      return await new Promise((ok, mal) => {
+        const fr = new FileReader();
+        fr.onload = () => ok(fr.result);
+        fr.onerror = () => mal(new Error('No pude leer la imagen'));
+        fr.readAsDataURL(archivo);
+      });
+    },
+
     async borrar(id) {
       this._guardar(this._leer().filter(f => f.id !== id));
     },
@@ -176,6 +213,7 @@
     iniciar:   ()   => impl.iniciar(),
     listar:    ()   => impl.listar(),
     sembrar:   f    => impl.sembrar(f),
+    subirFoto: a    => impl.subirFoto(a),
     borrar:    id   => impl.borrar(id),
     suscribir: cb   => impl.suscribir(cb),
     entrar:    (e,p)=> impl.entrar(e, p),

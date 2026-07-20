@@ -13,7 +13,9 @@ js/config.js       <- credenciales y colores
 js/flores-svg.js   <- ramo y catálogo de 15 flores, dibujadas a mano en vector
 js/datos.js        <- Supabase (tiempo real + auth) o localStorage
 js/app.js          <- interfaz
-sql/schema.sql     <- tabla + RLS + realtime
+js/cielo.js        <- ciclo día/noche con la hora de Colombia
+js/musica.js       <- playlist de Spotify
+sql/instalar.sql   <- tabla, permisos, fotos y realtime, todo en uno
 ```
 
 Nada de emojis. Las 15 especies —rosa, tulipán, clavel, peonía, girasol,
@@ -30,15 +32,24 @@ Abre `muestrario.html` para verlas todas de golpe.
 
 ## Puesta en marcha (10 min)
 
-### 1. Base de datos
-Supabase → **SQL Editor** → pegar `sql/schema.sql` → **Run**.
-
-### 2. Tu usuario del portal
+### 1. Tu usuario del portal
 Supabase → **Authentication → Users → Add user**: correo + contraseña, y marca
-*Auto Confirm User*. Ese es el único usuario que puede sembrar.
+*Auto Confirm User*. Ese es el único usuario que podrá sembrar. Va primero
+porque el script del paso 2 lee ese correo para darle permiso.
 
-Además, en **Authentication → Providers → Email**, apaga *Enable Sign Ups* para
-que nadie más pueda crearse una cuenta.
+Además, en **Authentication → Sign In / Providers → Email**, apaga
+*Enable Sign Ups* para que nadie más pueda crearse una cuenta.
+
+### 2. Base de datos
+Supabase → **SQL Editor** → pegar `sql/instalar.sql` entero → **Run**.
+
+Un solo archivo hace todo: tabla, permisos, fotos y tiempo real. Se puede
+ejecutar las veces que haga falta — comprueba antes de tocar nada, así que no
+se rompe si la base ya estaba a medias. Al terminar muestra una fila con las
+columnas, las políticas y el correo del dueño: si eso sale, quedó bien.
+
+**No pegues varios archivos SQL seguidos.** El editor corre todo en una
+transacción: si un trozo falla, se deshace también lo que ya había pasado.
 
 ### 3. Credenciales
 Supabase → **Project Settings → API**. Copia la URL y la clave `anon` /
@@ -67,6 +78,24 @@ pedirá la contraseña.
 - **Tú**: en el jardín, toca la **esquina inferior derecha** (botón invisible),
   entra con tu correo y contraseña, escribe la nota, eliges flor y color,
   *Sembrar*. Aparece al instante en el teléfono de ella.
+
+## Fotos en las notas
+
+Cada nota puede llevar una foto. Antes de subirla se reescala en el propio
+teléfono a 1600 px de lado y se recomprime a JPEG: una foto de cámara de 4 MB
+acaba pesando unos 200 KB, sube rápido y ella la abre sin gastar datos.
+
+El bucket de Storage lo crea `sql/instalar.sql`, con los mismos permisos que el
+jardín: cualquiera ve, sólo tú subes. Si no existe, la app avisa con "Falta
+crear el bucket" y todo lo demás sigue funcionando.
+
+En modo demo la foto se guarda dentro del navegador, sin subir nada.
+
+## Modo de prueba
+
+Añade `?demo=1` a la URL para trabajar contra `localStorage` en vez de la base
+de datos real: sirve para probar cambios sin ensuciar el jardín de verdad.
+La contraseña del portal en ese modo es `demo`.
 
 ## El cielo sigue la hora de Colombia
 

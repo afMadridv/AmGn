@@ -19,7 +19,10 @@
 
     modalNota:  $('#modalNota'),
     notaFlor:   $('#notaFlor'),
+    notaEspecie: $('#notaEspecie'),
     notaFecha:  $('#notaFecha'),
+    notaFigura: $('#notaFigura'),
+    notaFoto:   $('#notaFoto'),
     notaTexto:  $('#notaTexto'),
 
     modalLogin: $('#modalLogin'),
@@ -33,6 +36,11 @@
     formSembrar:  $('#formSembrar'),
     notaInput:    $('#notaInput'),
     contador:     $('#contador'),
+    fotoInput:    $('#fotoInput'),
+    fotoPrevia:   $('#fotoPrevia'),
+    fotoTexto:    $('#fotoTexto'),
+    zonaFoto:     $('#zonaFoto'),
+    btnQuitarFoto: $('#btnQuitarFoto'),
     selFlor:      $('#selectorFlor'),
     selColor:     $('#selectorColor'),
     sembrarError: $('#sembrarError'),
@@ -63,7 +71,10 @@
 
   function abrir(modal)  {
     modal.hidden = false;
-    requestAnimationFrame(() => modal.classList.add('abierto'));
+    // Un reflow forzado, no requestAnimationFrame: con la pestaña en segundo
+    // plano rAF no dispara y el modal se quedaba transparente para siempre.
+    void modal.offsetWidth;
+    modal.classList.add('abierto');
     document.body.classList.add('sin-scroll');
     const foco = modal.querySelector('input, textarea');
     if (foco) setTimeout(() => foco.focus(), 220);
@@ -92,7 +103,8 @@
     // El toque del ramo es el gesto que los navegadores exigen para dejar
     // sonar audio. Si el reproductor aún no cargó, queda pendiente.
     if (window.Musica) window.Musica.arrancar();
-    requestAnimationFrame(() => el.jardin.classList.add('visible'));
+    void el.jardin.offsetWidth;   // mismo motivo que en abrir()
+    el.jardin.classList.add('visible');
     setTimeout(() => { el.portada.hidden = true; }, 900);
   }
   el.ramo.addEventListener('click', entrarAlJardin);
@@ -152,12 +164,38 @@
     el.pista.hidden = flores.length === 0;
   }
 
+  function nombreDe(clave) {
+    const e = FloresSVG.ESPECIES.find(x => x.clave === clave);
+    return e ? e.nombre : '';
+  }
+
+  function nombreColor(hue) {
+    const c = CFG.COLORES.find(x => x.hue === Number(hue));
+    return c && c.nombre !== 'natural' ? c.nombre : '';
+  }
+
   function leerNota(id) {
     const flor = flores.find(f => f.id === id);
     if (!flor) return;
+
     el.notaFlor.innerHTML = FloresSVG.existe(flor.especie)
       ? FloresSVG.img(flor.especie, 96, false, flor.hue) : flor.especie;
+
+    const color = nombreColor(flor.hue);
+    el.notaEspecie.textContent = nombreDe(flor.especie) + (color ? ' ' + color : '');
+
     el.notaFecha.textContent = fechaLarga(flor.fecha);
+
+    // Primero se muestra el marco y después se asigna el src: si se asigna
+    // mientras el elemento sigue oculto, el navegador puede no cargarla.
+    if (flor.foto) {
+      el.notaFigura.hidden = false;
+      if (el.notaFoto.src !== flor.foto) el.notaFoto.src = flor.foto;
+    } else {
+      el.notaFigura.hidden = true;
+      el.notaFoto.removeAttribute('src');
+    }
+
     el.notaTexto.textContent = flor.texto;
     abrir(el.modalNota);
   }
@@ -241,6 +279,71 @@
     el.contador.textContent = el.notaInput.value.length;
   });
 
+  /* ------------------------------------------------------ foto de la nota */
+  let fotoElegida = null;   // Blob ya reducido, listo para subir
+
+  // Las fotos del móvil pesan varios megas. Se reescalan y recomprimen en el
+  // propio teléfono: sube rápido y ella la abre sin gastar datos.
+  function reducir(archivo) {
+    return new Promise((ok, mal) => {
+      const url = URL.createObjectURL(archivo);
+      const im = new Image();
+      im.onload = () => {
+        URL.revokeObjectURL(url);
+        const lado = Math.max(im.width, im.height);
+        const escala = Math.min(1, CFG.FOTO_MAX_LADO / lado);
+        const c = document.createElement('canvas');
+        c.width  = Math.round(im.width  * escala);
+        c.height = Math.round(im.height * escala);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        c.toBlob(
+          b => b ? ok(b) : mal(new Error('No pude procesar la imagen')),
+          'image/jpeg',
+          CFG.FOTO_CALIDAD
+        );
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); mal(new Error('Esa imagen no se puede leer')); };
+      im.src = url;
+    });
+  }
+
+  function pintarPrevia(blob) {
+    if (el.fotoPrevia.src.startsWith('blob:')) URL.revokeObjectURL(el.fotoPrevia.src);
+    el.fotoPrevia.src = URL.createObjectURL(blob);
+    el.fotoPrevia.hidden = false;
+    el.zonaFoto.classList.add('con-foto');
+    el.fotoTexto.textContent = 'Toca para cambiarla';
+    el.btnQuitarFoto.hidden = false;
+  }
+
+  function quitarFoto() {
+    fotoElegida = null;
+    if (el.fotoPrevia.src.startsWith('blob:')) URL.revokeObjectURL(el.fotoPrevia.src);
+    el.fotoPrevia.removeAttribute('src');
+    el.fotoPrevia.hidden = true;
+    el.zonaFoto.classList.remove('con-foto');
+    el.fotoTexto.textContent = 'Toca para elegir una foto';
+    el.btnQuitarFoto.hidden = true;
+    el.fotoInput.value = '';
+  }
+
+  el.fotoInput.addEventListener('change', async () => {
+    const archivo = el.fotoInput.files[0];
+    if (!archivo) return;
+    el.zonaFoto.classList.add('cargando');
+    try {
+      fotoElegida = await reducir(archivo);
+      pintarPrevia(fotoElegida);
+    } catch (err) {
+      quitarFoto();
+      aviso(err.message);
+    } finally {
+      el.zonaFoto.classList.remove('cargando');
+    }
+  });
+
+  el.btnQuitarFoto.addEventListener('click', quitarFoto);
+
   /* --------------------------------------------------------- portal: abrir */
   el.portal.addEventListener('click', async () => {
     if (await Datos.sesion()) { abrirPanel(); }
@@ -277,7 +380,8 @@
       const li = document.createElement('li');
       li.innerHTML = `<span class="mini">${
           FloresSVG.existe(f.especie) ? FloresSVG.img(f.especie, 26, true, f.hue) : f.especie}</span>
-        <span class="mini-txt">${f.texto.slice(0, 40)}${f.texto.length > 40 ? '…' : ''}</span>
+        <span class="mini-txt">${f.foto ? '<span class="mini-foto" title="Lleva foto">▣</span> ' : ''}${
+          f.texto.slice(0, 36)}${f.texto.length > 36 ? '…' : ''}</span>
         <button type="button" class="mini-borrar" aria-label="Borrar">&times;</button>`;
       li.querySelector('.mini-borrar').addEventListener('click', async () => {
         if (!confirm('¿Borrar esta flor y su nota? No se puede deshacer.')) return;
@@ -302,14 +406,22 @@
     const pos = posicionLibre();
 
     try {
+      let foto = null;
+      if (fotoElegida) {
+        el.btnSembrar.textContent = 'Subiendo foto…';
+        foto = await Datos.subirFoto(fotoElegida);
+      }
+      el.btnSembrar.textContent = 'Sembrando…';
+
       const flor = await Datos.sembrar({
-        texto, especie: elegido.especie, hue: elegido.hue, x: pos.x, y: pos.y
+        texto, especie: elegido.especie, hue: elegido.hue, foto, x: pos.x, y: pos.y
       });
       flores.push(flor);
       pintarFlor(flor, true);
       el.pista.hidden = false;
       el.notaInput.value = '';
       el.contador.textContent = '0';
+      quitarFoto();
       listarEnPanel();
       aviso('Flor sembrada 🌷');
     } catch (err) {
@@ -317,6 +429,7 @@
       el.sembrarError.hidden = false;
     } finally {
       el.btnSembrar.disabled = false;
+      el.btnSembrar.textContent = 'Sembrar';
     }
   });
 
