@@ -1,0 +1,11 @@
+# Notas personales que viven en esta carpeta, no son parte del proyecto
+.obsidian/
+Idea/
+cc.md
+
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

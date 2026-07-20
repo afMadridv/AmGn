@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Muestrario de flores</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; padding:32px 20px 60px; background:#f6f2ea; color:#3c3230;
+         font-family:'Quicksand',system-ui,sans-serif; }
+  h1 { font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600;
+       font-size:clamp(1.8rem,6vw,2.6rem); text-align:center; margin:0 0 6px; }
+  p.sub { text-align:center; color:#7a6a63; margin:0 0 30px; font-size:.9rem; }
+  h2 { font-family:'Cormorant Garamond',serif; font-size:1.4rem; margin:36px 0 14px;
+       border-bottom:1px solid #e3d8ca; padding-bottom:6px; }
+  .rejilla { display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+             max-width:960px; margin:0 auto; }
+  .ficha { background:#fffdf8; border:1px solid #ece0d2; border-radius:16px;
+           padding:14px 8px 10px; text-align:center; }
+  .ficha img { display:block; margin:0 auto 8px; width:88px; height:88px; }
+  .ficha span { font-size:.78rem; color:#7a6a63; }
+  .fila { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; max-width:960px; margin:0 auto; }
+  .fila img { width:72px; height:72px; }
+  .ramo { max-width:340px; margin:0 auto; }
+  .ramo svg { width:100%; height:auto; }
+</style>
+</head>
+<body>
+  <h1>Muestrario de flores</h1>
+  <p class="sub">Las mismas que salen en el jardín. Vectorial: se ve nítido a cualquier tamaño.</p>
+
+  <h2>Especies</h2>
+  <div class="rejilla" id="rejilla"></div>
+
+  <h2>La misma flor en los seis colores del portal</h2>
+  <div class="fila" id="colores"></div>
+
+  <h2>Miniatura del selector</h2>
+  <div class="fila" id="minis"></div>
+
+  <h2>Ramo de la portada</h2>
+  <div class="ramo" id="ramo"></div>
+
+<script src="js/flores-svg.js"></script>
+<script>
+  const HUES = [0, 320, 260, 200, 140, 40];
+
+  document.getElementById('rejilla').innerHTML = FloresSVG.ESPECIES.map(e =>
+    `<div class="ficha">${FloresSVG.img(e.clave, 88)}<span>${e.nombre}</span></div>`).join('');
+
+  document.getElementById('colores').innerHTML =
+    HUES.map(h => FloresSVG.img('lirio', 72, false, h)).join('');
+
+  document.getElementById('minis').innerHTML =
+    FloresSVG.ESPECIES.map(e => FloresSVG.img(e.clave, 72, true)).join('');
+
+  document.getElementById('ramo').innerHTML = FloresSVG.ramo();
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#7cc4a4">
+<title>Para Gabriela</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Quicksand:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<!-- ============ PANTALLA DE INICIO ============ -->
+<section id="portada" class="portada">
+  <div class="portada-halo"></div>
+
+  <h1 class="portada-titulo">Para Gabriela</h1>
+
+  <!-- Ramo de lirios: SVG dibujado, se inyecta desde js/flores-svg.js -->
+  <div class="ramo" id="ramo" role="button" tabindex="0" aria-label="Abrir el jardín"></div>
+
+  <button class="portada-cta" id="btnEntrar">Toca el ramo</button>
+</section>
+
+<!-- ============ EL JARDÍN ============ -->
+<main id="jardin" class="jardin" hidden>
+  <div class="cielo">
+    <div class="sol"></div>
+    <div class="nube nube--1"></div>
+    <div class="nube nube--2"></div>
+    <div class="nube nube--3"></div>
+  </div>
+
+  <div class="colinas"></div>
+
+  <!-- Campo de tierra: aquí viven las flores -->
+  <div class="tierra" id="tierra">
+    <div class="surco"></div>
+    <div class="pasto"></div>
+    <!-- Las flores se inyectan aquí -->
+  </div>
+
+  <!-- Patico caminando -->
+  <div class="patico" id="patico" aria-hidden="true">
+    <div class="pato-cuerpo">
+      <div class="pato-ala"></div>
+      <div class="pato-cabeza">
+        <div class="pato-ojo"></div>
+        <div class="pato-pico"></div>
+      </div>
+    </div>
+    <div class="pato-patas">
+      <div class="pata pata--izq"></div>
+      <div class="pata pata--der"></div>
+    </div>
+  </div>
+
+  <!-- Estado de conexión -->
+  <div class="estado" id="estado" role="status" aria-live="polite">
+    <span class="estado-punto"></span><span class="estado-txt">conectando…</span>
+  </div>
+
+  <p class="pista" id="pista">Toca una flor para leer su nota</p>
+
+  <!-- Música: playlist de Spotify -->
+  <div class="musica" id="musica" data-sonando="no">
+    <button class="musica-boton" id="btnMusica" aria-label="Poner música">
+      <span class="nota" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
+        </svg>
+      </span>
+      <span class="musica-txt" id="musicaEstado">cargando…</span>
+    </button>
+
+    <div class="musica-panel" id="panelMusica">
+      <button class="cerrar cerrar--musica" id="btnCerrarMusica" aria-label="Cerrar">&times;</button>
+      <div id="spotifyHueco"></div>
+      <p class="musica-nota">Toca ▶ dentro del reproductor si no arranca solo.</p>
+    </div>
+  </div>
+
+  <!-- Portal secreto: botón invisible esquina inferior derecha -->
+  <button class="portal-secreto" id="portalSecreto" aria-label="."></button>
+</main>
+
+<!-- ============ MODAL: LEER NOTA ============ -->
+<div class="modal" id="modalNota" hidden>
+  <div class="modal-fondo" data-cerrar></div>
+  <article class="tarjeta tarjeta--nota">
+    <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    <div class="nota-flor" id="notaFlor"></div>
+    <time class="nota-fecha" id="notaFecha"></time>
+    <p class="nota-texto" id="notaTexto"></p>
+  </article>
+</div>
+
+<!-- ============ MODAL: LOGIN DEL PORTAL ============ -->
+<div class="modal" id="modalLogin" hidden>
+  <div class="modal-fondo" data-cerrar></div>
+  <form class="tarjeta tarjeta--form" id="formLogin" autocomplete="on">
+    <button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    <h2 class="tarjeta-titulo">Portal secreto</h2>
+    <label class="campo">
+      <span>Usuario</span>
+      <input type="email" id="loginUser" required autocomplete="username" placeholder="tu@correo.com">
+    </label>
+    <label class="campo">
+      <span>Contraseña</span>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </label>
+    <p class="error" id="loginError" hidden></p>
+    <button class="btn btn--principal" type="submit" id="btnLogin">Entrar</button>
+  </form>
+</div>
+
+<!-- ============ MODAL: SEMBRAR FLOR ============ -->
+<div class="modal" id="modalSembrar" hidden>
+  <div class="modal-fondo" data-cerrar></div>
+  <form class="tarjeta tarjeta--form" id="formSembrar">
+    <button type="button" class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    <h2 class="tarjeta-titulo">Sembrar una nota</h2>
+
+    <label class="campo">
+      <span>Tu nota</span>
+      <textarea id="notaInput" rows="5" maxlength="1000" required
+        placeholder="Escribe lo que quieras que ella lea…"></textarea>
+      <small class="contador"><span id="contador">0</span>/1000</small>
+    </label>
+
+    <fieldset class="campo">
+      <span>Flor</span>
+      <div class="selector" id="selectorFlor"></div>
+    </fieldset>
+
+    <fieldset class="campo">
+      <span>Color</span>
+      <div class="selector selector--color" id="selectorColor"></div>
+    </fieldset>
+
+    <p class="error" id="sembrarError" hidden></p>
+
+    <div class="acciones">
+      <button class="btn btn--fantasma" type="button" id="btnSalir">Cerrar sesión</button>
+      <button class="btn btn--principal" type="submit" id="btnSembrar">Sembrar</button>
+    </div>
+
+    <details class="jardinero">
+      <summary id="resumenSembradas">Flores sembradas</summary>
+      <ul class="lista-flores" id="listaFlores"></ul>
+    </details>
+  </form>
+</div>
+
+<div class="brindis" id="brindis" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/flores-svg.js"></script>
+<script src="js/datos.js"></script>
+<script src="js/app.js"></script>
+<script src="js/musica.js"></script>
+</body>
+</html>
