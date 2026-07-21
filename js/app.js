@@ -17,6 +17,19 @@
     estado:    $('#estado'),
     portal:    $('#portalSecreto'),
 
+    patico:    $('#patico'),
+    rincones:  $('#rincones'),
+    rinconAtras: $('#rinconAtras'),
+    rinconSiguiente: $('#rinconSiguiente'),
+    rinconPuntos: $('#rinconPuntos'),
+
+    btnLibro:   $('#btnLibro'),
+    modalLibro: $('#modalLibro'),
+    libroLista: $('#libroLista'),
+    libroCuenta: $('#libroCuenta'),
+
+    btnCorazon: $('#btnCorazon'),
+
     modalNota:  $('#modalNota'),
     notaFlor:   $('#notaFlor'),
     notaEspecie: $('#notaEspecie'),
@@ -55,6 +68,12 @@
   let flores    = [];
   let elegido   = { especie: FloresSVG.ESPECIES[0].clave, hue: CFG.COLORES[0].hue };
   let jardinAbierto = false;
+
+  // El campo se recorre por rincones: sólo se dibuja el tramo que se está
+  // mirando. Además de dar sitio a muchas notas, mantiene el jardín ligero.
+  const POR_RINCON = 35;
+  let rincon = 0;
+  let florAbierta = null;
 
   /* ---------------------------------------------------------------- utils */
   const aviso = (txt) => {
@@ -126,7 +145,7 @@
         const d = Math.hypot(f.x - x, (f.y - y) * 0.6);
         if (d < dist) dist = d;
       }
-      if (dist > 14) return { x, y };
+      if (dist > 9) return { x, y };
       if (dist > mejorDist) { mejorDist = dist; mejor = { x, y }; }
     }
     return mejor;
@@ -156,12 +175,89 @@
     b.setAttribute('aria-label', 'Nota del ' + fechaLarga(flor.fecha));
     b.addEventListener('click', () => leerNota(flor.id));
     el.campo.appendChild(b);
+
+    // Un bicho se posa en las que ella todavía no ha abierto.
+    if (window.Bichos && Bichos.esNueva(flor.id)) Bichos.posarEn(b, flor.id);
+  }
+
+  /* --------------------------------------------------------- rincones ---- */
+  function totalRincones() {
+    return Math.max(1, Math.ceil(flores.length / POR_RINCON));
+  }
+
+  function floresDelRincon() {
+    return flores.slice(rincon * POR_RINCON, (rincon + 1) * POR_RINCON);
+  }
+
+  function rinconDe(id) {
+    const i = flores.findIndex(f => f.id === id);
+    return i < 0 ? 0 : Math.floor(i / POR_RINCON);
+  }
+
+  function pintarRincones() {
+    const total = totalRincones();
+    el.rincones.hidden = total < 2;
+    el.rinconAtras.disabled = rincon === 0;
+    el.rinconSiguiente.disabled = rincon >= total - 1;
+
+    el.rinconPuntos.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      const p = document.createElement('button');
+      p.className = 'rincon-punto' + (i === rincon ? ' activo' : '');
+      p.type = 'button';
+      p.setAttribute('aria-label', 'Rincón ' + (i + 1));
+      p.addEventListener('click', () => irAlRincon(i));
+      el.rinconPuntos.appendChild(p);
+    }
   }
 
   function repintar() {
+    const total = totalRincones();
+    if (rincon > total - 1) rincon = total - 1;
+    if (rincon < 0) rincon = 0;
+
     el.campo.querySelectorAll('.flor-plantada').forEach(n => n.remove());
-    flores.forEach(f => pintarFlor(f, false));
+    floresDelRincon().forEach(f => pintarFlor(f, false));
     el.pista.hidden = flores.length === 0;
+    pintarRincones();
+  }
+
+  function irAlRincon(n) {
+    const total = totalRincones();
+    n = Math.min(Math.max(n, 0), total - 1);
+    if (n === rincon) return;
+
+    const haciaLaDerecha = n > rincon;
+    rincon = n;
+
+    // Las flores del rincón anterior se van por el lado contrario al que
+    // caminamos, como si el jardín se desplazara bajo los pies.
+    el.campo.querySelectorAll('.flor-plantada').forEach(nodo => {
+      nodo.classList.add(haciaLaDerecha ? 'sale-izq' : 'sale-der');
+    });
+    paticoCamina(haciaLaDerecha ? 'derecha' : 'izquierda');
+
+    setTimeout(() => {
+      repintar();
+      el.campo.querySelectorAll('.flor-plantada').forEach(nodo => {
+        nodo.classList.add(haciaLaDerecha ? 'entra-der' : 'entra-izq');
+        setTimeout(() => nodo.classList.remove('entra-der', 'entra-izq'), 700);
+      });
+    }, 330);
+  }
+
+  el.rinconAtras.addEventListener('click', () => irAlRincon(rincon - 1));
+  el.rinconSiguiente.addEventListener('click', () => irAlRincon(rincon + 1));
+
+  // Una flor recién sembrada: si cae en el rincón que se está mirando brota a
+  // la vista y el patico se acerca a curiosear; si no, sólo cambia el índice.
+  function brotarEnPantalla(flor) {
+    el.pista.hidden = false;
+    if (rinconDe(flor.id) === rincon) {
+      pintarFlor(flor, true);
+      paticoIrA(flor.x - 4);
+    }
+    pintarRincones();
   }
 
   function nombreDe(clave) {
@@ -174,9 +270,40 @@
     return c && c.nombre !== 'natural' ? c.nombre : '';
   }
 
+  function pintarCorazon(flor) {
+    el.btnCorazon.classList.toggle('dado', flor.corazon);
+    el.btnCorazon.setAttribute('aria-pressed', String(flor.corazon));
+    el.btnCorazon.disabled = flor.corazon;   // se da una vez, no se quita
+  }
+
+  el.btnCorazon.addEventListener('click', async () => {
+    if (!florAbierta || florAbierta.corazon) return;
+    florAbierta.corazon = true;
+    pintarCorazon(florAbierta);
+    el.btnCorazon.classList.add('latiendo');
+    setTimeout(() => el.btnCorazon.classList.remove('latiendo'), 900);
+    try {
+      await Datos.darCorazon(florAbierta.id);
+    } catch (err) {
+      florAbierta.corazon = false;
+      pintarCorazon(florAbierta);
+      aviso('No pude guardar el corazón');
+      console.error(err);
+    }
+  });
+
   function leerNota(id) {
     const flor = flores.find(f => f.id === id);
     if (!flor) return;
+    florAbierta = flor;
+
+    // Deja de ser nueva: el bicho posado se va.
+    if (window.Bichos) {
+      Bichos.marcarLeida(id);
+      const nodo = el.campo.querySelector(`[data-id="${id}"]`);
+      if (nodo) Bichos.quitarDe(nodo);
+    }
+    pintarCorazon(flor);
 
     el.notaFlor.innerHTML = FloresSVG.existe(flor.especie)
       ? FloresSVG.img(flor.especie, 96, false, flor.hue) : flor.especie;
@@ -200,6 +327,86 @@
     abrir(el.modalNota);
   }
 
+  /* --------------------------------------------------------- el patico ---
+     Pasea por su cuenta: elige un punto cualquiera, va andando, se para un
+     rato y vuelve a elegir. Se mueve por toda la tierra y sube al campo
+     verde. `y` es la altura desde abajo: 3% es el filo de abajo del jardín
+     y 46% ya son las lomas.                                               */
+  const PATICO = { minX: 3, maxX: 90, minY: 3, maxY: 46 };
+  let paticoTimer = null;
+  let paticoPos = { x: 12, y: 8 };
+
+  function paticoColocar(x, y, alLlegar) {
+    if (!el.patico) return;
+    x = Math.min(Math.max(x, PATICO.minX), PATICO.maxX);
+    y = Math.min(Math.max(y, PATICO.minY), PATICO.maxY);
+
+    const dx = x - paticoPos.x, dy = y - paticoPos.y;
+    const viaje = Math.hypot(dx, dy * 1.6);      // subir cuesta más que andar
+    const tiempo = viaje * 0.055 + 0.6;
+
+    // Cuanto más arriba está, más lejos se ve: encoge y pasa por detrás de
+    // las flores que quedan más abajo que él.
+    const lejos = (1 - (y - PATICO.minY) / (PATICO.maxY - PATICO.minY) * 0.42).toFixed(3);
+
+    clearTimeout(paticoTimer);
+    el.patico.classList.remove('quieto');
+    if (Math.abs(dx) > 0.6) el.patico.style.setProperty('--mira', dx > 0 ? 1 : -1);
+    el.patico.style.setProperty('--paso', tiempo.toFixed(2) + 's');
+    el.patico.style.setProperty('--px', x.toFixed(1) + '%');
+    el.patico.style.setProperty('--py', y.toFixed(1) + '%');
+    el.patico.style.setProperty('--lejos', lejos);
+    el.patico.style.setProperty('--capa', String(400 - Math.round(y * 4)));
+    paticoPos = { x, y };
+
+    paticoTimer = setTimeout(() => {
+      el.patico.classList.add('quieto');
+      if (alLlegar) alLlegar();
+      paticoTimer = setTimeout(paticoPasear, 900 + Math.random() * 2600);
+    }, tiempo * 1000);
+  }
+
+  function paticoPasear() {
+    // Pasos cortos y cercanos: cruzar el jardín de punta a punta cada vez
+    // parecería que huye de algo.
+    const x = paticoPos.x + (Math.random() * 46 - 23);
+
+    // La altura se sortea sobre toda la banda, pero tirando hacia donde ya
+    // está. Sin ese reparto se quedaba pegado al borde de abajo, porque un
+    // paso al azar desde el suelo casi siempre choca con el límite.
+    let y;
+    if (Math.random() < .4) {
+      y = PATICO.minY + Math.random() * (PATICO.maxY - PATICO.minY);
+    } else {
+      y = paticoPos.y + (Math.random() * 24 - 12);
+      // Si el tumbo lo saca de la banda, rebota hacia dentro en vez de
+      // quedarse aplastado contra el borde.
+      if (y < PATICO.minY) y = PATICO.minY + (PATICO.minY - y);
+      if (y > PATICO.maxY) y = PATICO.maxY - (y - PATICO.maxY);
+    }
+    paticoColocar(x, y);
+  }
+
+  function paticoIrA(x, y, alLlegar) {
+    paticoColocar(x, y === undefined ? paticoPos.y : y, alLlegar);
+  }
+
+  function paticoCamina(direccion) {
+    paticoIrA(paticoPos.x + (direccion === 'derecha' ? 24 : -24));
+  }
+
+  // Un toque en el suelo y va hasta ese punto exacto.
+  function seguirToque(e) {
+    if (e.target.closest('.flor-plantada, button')) return;
+    const caja = el.jardin.getBoundingClientRect();
+    paticoIrA((e.clientX - caja.left) / caja.width * 100,
+              (caja.bottom - e.clientY) / caja.height * 100);
+  }
+  el.campo.addEventListener('click', seguirToque);
+  document.querySelector('.colinas').addEventListener('click', seguirToque);
+
+  paticoPasear();
+
   /* ------------------------------------------------------------- realtime */
   function conectar() {
     Datos.alConectar(txt => {
@@ -212,8 +419,7 @@
       if (ev.tipo === 'alta') {
         if (flores.some(f => f.id === ev.flor.id)) return; // ya la pinté yo
         flores.push(ev.flor);
-        pintarFlor(ev.flor, true);
-        el.pista.hidden = false;
+        brotarEnPantalla(ev.flor);
         aviso('Brotó una flor nueva 🌱');
       } else if (ev.tipo === 'baja') {
         flores = flores.filter(f => f.id !== ev.id);
@@ -367,6 +573,41 @@
     }
   });
 
+  /* ------------------------------------------------- el libro del jardín - */
+  el.btnLibro.addEventListener('click', () => {
+    const total = flores.length;
+    el.libroCuenta.textContent = total === 0
+      ? 'Todavía no hay ninguna nota.'
+      : total + (total === 1 ? ' nota sembrada' : ' notas sembradas');
+
+    el.libroLista.innerHTML = '';
+    // De la más reciente a la más antigua: se lee como un diario al revés.
+    [...flores].reverse().forEach(f => {
+      const li = document.createElement('li');
+      li.className = 'libro-item' + (Bichos.esNueva(f.id) ? ' sin-leer' : '');
+      li.innerHTML = `
+        <span class="libro-flor">${
+          FloresSVG.existe(f.especie) ? FloresSVG.img(f.especie, 40, true, f.hue) : f.especie}</span>
+        <span class="libro-txt">
+          <time>${fechaLarga(f.fecha)}</time>
+          <em>${f.texto.slice(0, 70)}${f.texto.length > 70 ? '…' : ''}</em>
+        </span>
+        ${f.foto ? '<span class="libro-marca" title="Lleva foto">▣</span>' : ''}
+        ${f.corazon ? '<span class="libro-marca libro-marca--corazon" title="Con corazón">♥</span>' : ''}`;
+
+      li.addEventListener('click', () => {
+        cerrar(el.modalLibro);
+        // Salta al rincón donde vive esa flor y abre su nota.
+        const destino = rinconDe(f.id);
+        if (destino !== rincon) { rincon = destino; repintar(); }
+        setTimeout(() => leerNota(f.id), 320);
+      });
+      el.libroLista.appendChild(li);
+    });
+
+    abrir(el.modalLibro);
+  });
+
   function abrirPanel() {
     construirSelectores();
     listarEnPanel();
@@ -417,8 +658,8 @@
         texto, especie: elegido.especie, hue: elegido.hue, foto, x: pos.x, y: pos.y
       });
       flores.push(flor);
-      pintarFlor(flor, true);
-      el.pista.hidden = false;
+      if (window.Bichos) Bichos.marcarLeida(flor.id);  // yo la escribí, no es nueva para mí
+      brotarEnPantalla(flor);
       el.notaInput.value = '';
       el.contador.textContent = '0';
       quitarFoto();

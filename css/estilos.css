@@ -203,11 +203,14 @@ button { font-family: inherit; color: inherit; }
   width: 1px; height: 1px;
   border-radius: 50%;
   background: transparent;
+  /* El halo hace que la estrella brille de verdad en vez de ser un punto. */
+  filter: drop-shadow(0 0 5px rgba(214, 231, 255, .95))
+          drop-shadow(0 0 12px rgba(150, 190, 255, .55));
   animation-name: titilar;
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
 }
-@keyframes titilar { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes titilar { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
 
 /* ------------------------------------------------------------ sol y luna - */
 .astro {
@@ -293,23 +296,43 @@ button { font-family: inherit; color: inherit; }
 .jardin[data-momento="noche"]     .nube { --nube: #2f3c70; opacity: .5; }
 
 /* --------------------------------------------------------------- colinas */
+/* El campo verde: dos lomas con luz arriba, sombra al pie y una textura de
+   hierba corta, para que no sea una mancha plana de color. */
 .colinas {
   position: absolute; left: -5%; right: -5%; bottom: 34%;
   height: 22%;
   background:
+    /* mata de hierba, muy sutil */
+    repeating-linear-gradient(84deg,
+      rgba(255,255,255,.05) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(-78deg,
+      rgba(0,0,0,.035) 0 2px, transparent 2px 9px),
+    /* luz del sol arriba de cada loma */
+    radial-gradient(38% 52% at 20% 66%, rgba(214,240,168,.5), transparent 70%),
+    radial-gradient(34% 46% at 74% 70%, rgba(198,232,152,.4), transparent 70%),
+    /* las lomas */
     radial-gradient(62% 100% at 20% 100%, var(--pasto) 0 100%, transparent 100%),
     radial-gradient(72% 100% at 72% 100%, var(--pasto-osc) 0 100%, transparent 100%);
 }
+/* Sombra en la base, donde la loma se hunde en el campo. */
+.colinas::after {
+  content: '';
+  position: absolute; inset: auto 0 0 0; height: 26%;
+  background: linear-gradient(180deg, transparent, rgba(28, 62, 26, .22));
+}
+
 /* Colina de fondo: más pálida y desvaída, para dar profundidad. */
 .colinas--lejos {
   bottom: 36.5%;
-  height: 18%;
-  filter: blur(.6px);
-  opacity: .62;
+  height: 19%;
+  filter: blur(1px);
+  opacity: .55;
   background:
-    radial-gradient(56% 100% at 46% 100%, #93c98c 0 100%, transparent 100%),
-    radial-gradient(48% 100% at 88% 100%, #a5d29a 0 100%, transparent 100%);
+    radial-gradient(56% 100% at 46% 100%, #9ed296 0 100%, transparent 100%),
+    radial-gradient(48% 100% at 88% 100%, #b0dba4 0 100%, transparent 100%),
+    radial-gradient(40% 100% at 8% 100%, #a8d79e 0 100%, transparent 100%);
 }
+.colinas--lejos::after { display: none; }
 
 /* ----------------------------------------------------------------- tinte -
    Una sola veladura sobre todo el paisaje: sin ella el cielo cambia de hora
@@ -385,6 +408,15 @@ button { font-family: inherit; color: inherit; }
 .surco {
   position: absolute; inset: 0;
   background:
+    /* piedras algo mayores, con su brillo y su sombra */
+    radial-gradient(4px 3px at 24% 30%, rgba(226,206,178,.55), transparent),
+    radial-gradient(5px 3.5px at 57% 47%, rgba(214,192,164,.45), transparent),
+    radial-gradient(4px 3px at 80% 66%, rgba(226,206,178,.4), transparent),
+    radial-gradient(3px 2px at 40% 76%, rgba(214,192,164,.4), transparent),
+    /* raicillas y ramitas */
+    radial-gradient(24px 1.5px at 30% 52%, rgba(74,46,26,.28), transparent),
+    radial-gradient(18px 1.2px at 66% 28%, rgba(74,46,26,.24), transparent),
+    radial-gradient(20px 1.4px at 82% 84%, rgba(74,46,26,.22), transparent),
     /* piedritas y terrones */
     radial-gradient(3px 2px   at 18% 22%, rgba(90,58,34,.5), transparent),
     radial-gradient(4px 2.5px at 62% 34%, rgba(90,58,34,.42), transparent),
@@ -402,10 +434,15 @@ button { font-family: inherit; color: inherit; }
     /* surcos del arado */
     repeating-linear-gradient(177.5deg,
       rgba(0,0,0,.04) 0 2px, transparent 2px 42px),
-    /* relieve suave: dos hondonadas y la luz de arriba */
-    radial-gradient(48% 32% at 26% 44%, rgba(255,235,200,.07), transparent),
-    radial-gradient(42% 28% at 78% 68%, rgba(0,0,0,.08), transparent),
-    linear-gradient(180deg, rgba(255,230,190,.12) 0 14%, transparent 40%);
+    /* relieve suave: hondonadas, la luz de arriba y la sombra del fondo */
+    radial-gradient(48% 32% at 26% 44%, rgba(255,235,200,.09), transparent),
+    radial-gradient(42% 28% at 78% 68%, rgba(0,0,0,.1), transparent),
+    radial-gradient(60% 40% at 50% 8%, rgba(255,236,198,.16), transparent),
+    linear-gradient(180deg,
+      rgba(255,230,190,.14) 0 12%,
+      transparent 38%,
+      rgba(38,20,10,.16) 88%,
+      rgba(38,20,10,.26) 100%);
   pointer-events: none;
 }
 
@@ -473,23 +510,26 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 }
 
 /* ------------------------------------------------ patico caminando ------ */
+/* El patico anda por donde quiere: js/app.js le da un destino (x, y) y él va
+   andando. Sube al campo verde, baja a la tierra y hace pausas. Cuanto más
+   arriba está, más pequeño se ve, que es lo que da la sensación de fondo. */
 .patico {
   position: absolute;
-  bottom: 8%;
-  left: 0;
+  left: var(--px, 10%);
+  bottom: var(--py, 8%);
   width: clamp(46px, 13vw, 82px);
   aspect-ratio: 1.15;
-  z-index: 400;
-  animation: caminar 22s linear infinite;
+  z-index: var(--capa, 400);
+  scale: var(--lejos, 1);
+  transform: scaleX(var(--mira, 1));
   pointer-events: none;
+  transition: left var(--paso, 3s) ease-in-out,
+              bottom var(--paso, 3s) ease-in-out,
+              scale var(--paso, 3s) ease-in-out;
 }
-@keyframes caminar {
-  0%   { left: -12%; transform: scaleX(1); }
-  48%  { left: 100%; transform: scaleX(1); }
-  50%  { left: 100%; transform: scaleX(-1); }
-  98%  { left: -12%; transform: scaleX(-1); }
-  100% { left: -12%; transform: scaleX(1); }
-}
+/* Parado: deja de mover las patas. */
+.patico.quieto .pata,
+.patico.quieto .pato-cuerpo { animation-play-state: paused; }
 
 .pato-cuerpo {
   position: absolute; bottom: 12%; left: 0;
@@ -540,6 +580,95 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 .pata--izq { left: 0;  animation: paso .38s ease-in-out infinite alternate; }
 .pata--der { right: 0; animation: paso .38s ease-in-out infinite alternate-reverse; }
 @keyframes paso { from { rotate: -20deg; } to { rotate: 20deg; } }
+
+/* ============================================================== BICHOS ===
+   Los que vuelan sueltos cruzan el jardín en bucle, subiendo y bajando por
+   su cuenta: dos animaciones independientes en dos capas, que es lo que hace
+   que el vuelo no parezca una línea recta.
+   ======================================================================== */
+.bicho {
+  position: absolute;
+  top: var(--alto, 30%);
+  left: -8%;
+  width: clamp(20px, 5vw, 34px);
+  scale: var(--tam, 1);
+  z-index: 380;
+  pointer-events: none;
+  animation: cruzar var(--vuelo, 22s) linear infinite var(--retraso, 0s);
+}
+.bicho.al-reves { animation-name: cruzar-al-reves; }
+@keyframes cruzar         { from { left: -8%; }  to { left: 106%; } }
+@keyframes cruzar-al-reves { from { left: 106%; } to { left: -8%; } }
+
+.bicho .bicho-svg {
+  display: block; width: 100%; height: auto;
+  animation: ondear var(--sube, 3s) ease-in-out infinite alternate;
+}
+@keyframes ondear {
+  from { transform: translateY(-10px) rotate(-8deg); }
+  to   { transform: translateY(10px)  rotate(8deg); }
+}
+.bicho.al-reves .bicho-svg { scale: -1 1; }
+
+/* El aleteo: las alas se encogen y estiran muy rápido. */
+.bicho-svg .alas {
+  transform-origin: 20px 20px;
+  animation: aletear-bicho var(--aleteo, .3s) ease-in-out infinite alternate;
+}
+.bicho-svg .alas--der { animation-delay: calc(var(--aleteo, .3s) / 2); }
+@keyframes aletear-bicho {
+  from { transform: scaleY(1)   scaleX(1); }
+  to   { transform: scaleY(.55) scaleX(.92); }
+}
+
+/* La luciérnaga late en vez de aletear: tres halos superpuestos para que la
+   luz se vea de verdad contra el cielo de noche. */
+.bicho--luciernaga {
+  filter: drop-shadow(0 0 6px rgba(255, 249, 160, 1))
+          drop-shadow(0 0 16px rgba(246, 226, 90, .85))
+          drop-shadow(0 0 34px rgba(214, 190, 60, .5));
+  animation-name: cruzar, brillo-farol;
+  animation-duration: var(--vuelo, 22s), 2.4s;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-delay: var(--retraso, 0s), 0s;
+}
+.bicho--luciernaga.al-reves { animation-name: cruzar-al-reves, brillo-farol; }
+@keyframes brillo-farol {
+  0%, 100% { opacity: .55; }
+  45%      { opacity: 1; }
+}
+.bicho-svg .farol { animation: farol 2.4s ease-in-out infinite; transform-origin: center; }
+@keyframes farol {
+  0%, 100% { opacity: .5; scale: .82; }
+  45%      { opacity: 1; scale: 1.12; }
+}
+
+/* El bicho que se posa en una flor sin leer. */
+.bicho-posado {
+  position: absolute;
+  top: -14%; right: -26%;
+  width: 62%;
+  z-index: 5;
+  pointer-events: none;
+  animation: posarse .7s cubic-bezier(.22,1.3,.36,1) both,
+             temblar 2.8s ease-in-out infinite 1s;
+}
+.bicho-posado .bicho-svg { display: block; width: 100%; height: auto; }
+@keyframes posarse {
+  from { opacity: 0; transform: translate(14px, -18px) scale(.6) rotate(-20deg); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes temblar {
+  0%, 100% { rotate: -5deg; }
+  50%      { rotate: 5deg; }
+}
+.bicho-posado.se-va {
+  animation: irse .7s ease-in forwards;
+}
+@keyframes irse {
+  to { opacity: 0; transform: translate(26px, -46px) scale(.7) rotate(24deg); }
+}
 
 /* ------------------------------------------------ pista, estado, portal - */
 .pista {
@@ -627,6 +756,142 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 /* El controlador de Spotify sustituye el div por su iframe, así que el estilo
    se apunta al panel, no al hueco. */
 .musica-panel iframe { border-radius: 12px; display: block; width: 100%; }
+
+/* ---------------------------------------------------------- rincones ---- */
+.rincones {
+  position: absolute;
+  left: 50%; bottom: calc(env(safe-area-inset-bottom) + 10px);
+  translate: -50% 0;
+  z-index: 520;
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.62);
+  backdrop-filter: blur(6px);
+}
+.rincones[hidden] { display: none; }
+
+.rincon-flecha {
+  width: 30px; height: 30px;
+  border: 0; border-radius: 50%;
+  background: none;
+  font-size: 1.4rem; line-height: 1;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  transition: background .2s ease, transform .2s ease, opacity .2s ease;
+}
+.rincon-flecha:hover:not(:disabled) { background: rgba(216,116,143,.16); transform: scale(1.1); }
+.rincon-flecha:disabled { opacity: .28; cursor: default; }
+
+.rincon-puntos { display: flex; gap: 6px; }
+.rincon-punto {
+  width: 8px; height: 8px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: rgba(90,70,64,.3);
+  cursor: pointer;
+  transition: background .3s ease, width .3s cubic-bezier(.16,1,.3,1);
+}
+.rincon-punto.activo { background: var(--acento); width: 20px; border-radius: 999px; }
+
+/* Las flores entran y salen deslizándose al cambiar de rincón. */
+.flor-plantada.sale-izq  { animation: sale-izq  .34s ease-in forwards; }
+.flor-plantada.sale-der  { animation: sale-der  .34s ease-in forwards; }
+.flor-plantada.entra-der { animation: entra-der .55s cubic-bezier(.16,1,.3,1) both; }
+.flor-plantada.entra-izq { animation: entra-izq .55s cubic-bezier(.16,1,.3,1) both; }
+@keyframes sale-izq  { to { opacity: 0; translate: -160% -100%; } }
+@keyframes sale-der  { to { opacity: 0; translate: 60% -100%; } }
+@keyframes entra-der { from { opacity: 0; translate: 60% -100%; }   to { opacity: 1; translate: -50% -100%; } }
+@keyframes entra-izq { from { opacity: 0; translate: -160% -100%; } to { opacity: 1; translate: -50% -100%; } }
+
+/* ------------------------------------------------------------- libro ---- */
+.libro-boton {
+  position: absolute;
+  top: max(52px, calc(env(safe-area-inset-top) + 42px));
+  right: 12px;
+  z-index: 545;
+  display: grid; place-items: center;
+  width: 38px; height: 38px;
+  border: 0; border-radius: 50%;
+  background: rgba(255,255,255,.72);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 3px 10px rgba(60,40,35,.14);
+  color: var(--tinta-suave);
+  cursor: pointer;
+  transition: transform .2s cubic-bezier(.16,1,.3,1), color .2s ease;
+}
+.libro-boton:hover { transform: scale(1.08); color: var(--acento); }
+
+.tarjeta--libro { width: min(94vw, 470px); }
+.libro-cuenta { margin: -8px 0 14px; font-size: .78rem; color: var(--tinta-suave); }
+.libro-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.libro-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: #f8f0e6;
+  cursor: pointer;
+  transition: background .2s ease, transform .2s cubic-bezier(.16,1,.3,1);
+}
+.libro-item:hover { background: #fbe7ec; transform: translateX(3px); }
+.libro-item.sin-leer { box-shadow: inset 3px 0 0 var(--acento); }
+.libro-flor { display: grid; place-items: center; width: 40px; flex: none; }
+.libro-flor .svg-flor { width: 40px; height: 40px; }
+.libro-txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.libro-txt time { font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--tinta-suave); }
+.libro-txt em {
+  font-family: var(--serif); font-size: .98rem; font-style: italic;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.libro-marca { color: var(--tinta-suave); font-size: .8rem; }
+.libro-marca--corazon { color: var(--acento); font-size: .95rem; }
+
+/* ----------------------------------------------------------- corazón ---- */
+.corazon {
+  position: relative;   /* ancla del corazón que sube al pulsar */
+  display: grid; place-items: center;
+  width: 54px; height: 54px;
+  margin: 20px auto 0;
+  padding: 0;
+  border: 1.5px solid #f0d3dc;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  transition: background .25s ease, border-color .25s ease,
+              transform .2s cubic-bezier(.16,1,.3,1);
+}
+.corazon svg { fill: none; stroke: #d8748f; stroke-width: 1.8; transition: fill .3s ease; }
+.corazon:hover:not(:disabled) { background: #fdeef2; transform: translateY(-1px); }
+.corazon:active:not(:disabled) { transform: scale(.97); }
+.corazon.dado {
+  background: #fdeef2;
+  border-color: var(--acento);
+  cursor: default;
+}
+.corazon.dado svg { fill: var(--acento); stroke: var(--acento); }
+
+/* Al darlo: un latido y un corazón que sube y se desvanece. */
+.corazon.latiendo svg { animation: latido .9s ease-out; }
+@keyframes latido {
+  0%   { transform: scale(1); }
+  22%  { transform: scale(1.42); }
+  44%  { transform: scale(.94); }
+  66%  { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+.corazon.latiendo::after {
+  content: '♥';
+  position: absolute;
+  left: 50%; bottom: 40px;
+  color: var(--acento);
+  font-size: 1.5rem;
+  pointer-events: none;
+  animation: corazon-sube 1s ease-out forwards;
+}
+@keyframes corazon-sube {
+  from { opacity: 1; transform: translate(-50%, 0) scale(.6); }
+  to   { opacity: 0; transform: translate(-50%, -56px) scale(1.3); }
+}
 
 /* El portal: invisible pero alcanzable con el dedo. */
 .portal-secreto {

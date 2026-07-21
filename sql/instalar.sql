@@ -20,6 +20,7 @@ create table if not exists public.flores (
   especie    text         not null default 'lirio',
   hue        int          not null default 0 check (hue between 0 and 360),
   foto       text,
+  corazon    boolean      not null default false,
   x          numeric(5,2) not null check (x between 0 and 100),
   y          numeric(5,2) not null check (y between 0 and 100),
   created_at timestamptz  not null default now()
@@ -44,6 +45,7 @@ end $$;
 
 alter table public.flores alter column especie set default 'lirio';
 alter table public.flores add column if not exists foto text;
+alter table public.flores add column if not exists corazon boolean not null default false;
 
 -- --------------------------------------------------------------------------
 -- 2. Quién puede hacer qué
@@ -85,6 +87,25 @@ begin
 
   raise notice 'Dueño del jardín: %', duenio;
 end $$;
+
+-- --------------------------------------------------------------------------
+-- 2b. El corazón de ella
+--     Ella entra sin cuenta, así que no puede escribir en la tabla. En vez de
+--     abrirle un UPDATE (con el que podría borrar el texto de una nota), se
+--     le da una función que sólo sabe hacer una cosa: poner el corazón. No
+--     puede quitarlo ni tocar nada más.
+-- --------------------------------------------------------------------------
+create or replace function public.dar_corazon(flor_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.flores set corazon = true where id = flor_id;
+$$;
+
+revoke all on function public.dar_corazon(uuid) from public;
+grant execute on function public.dar_corazon(uuid) to anon, authenticated;
 
 -- --------------------------------------------------------------------------
 -- 3. Fotos de las notas
@@ -146,4 +167,5 @@ select
     where schemaname = 'storage' and tablename = 'objects'
       and policyname like 'fotos%')                                     as politicas_fotos,
   (select public from storage.buckets where id = 'notas')               as bucket_publico,
+  (select count(*) from pg_proc where proname = 'dar_corazon')          as funcion_corazon,
   (select email from auth.users order by created_at limit 1)            as duenio;

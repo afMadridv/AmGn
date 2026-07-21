@@ -79,6 +79,42 @@ pedirá la contraseña.
   entra con tu correo y contraseña, escribe la nota, eliges flor y color,
   *Sembrar*. Aparece al instante en el teléfono de ella.
 
+## El corazón de ella
+
+Cada nota tiene un botón de corazón. Ella no tiene cuenta, así que no puede
+escribir en la tabla: el corazón se pone llamando a `dar_corazon()`, una
+función del servidor que sólo sabe hacer eso. No puede quitarlo ni tocar el
+texto de la nota. En el libro y en el portal ves cuáles te marcó.
+
+## Rincones
+
+Cada campo aguanta 35 flores; a partir de ahí se abre otro, y se pasa de uno a
+otro con las flechas de abajo. Sólo se dibuja el campo que se está mirando, así
+que da igual que haya cientos de notas. El patico camina hacia el lado al que
+vas.
+
+## El libro
+
+El botón del libro, arriba a la derecha, abre la lista de todas las notas de la
+más reciente a la más antigua, con marca de las que ella aún no ha abierto, de
+las que llevan foto y de las que tienen corazón. Al tocar una, el jardín salta
+a su rincón y la abre.
+
+## Bichos
+
+De día vuelan una mariposa, una abeja y una mariquita; de noche, sólo
+luciérnagas con el farol latiendo. Sobre cada flor que ella todavía no ha
+abierto se posa uno —mariposa, abeja o mariquita según la nota—, y al leerla
+levanta el vuelo pero **se queda a vivir en el jardín**: sigue revoloteando
+por ahí, y lo seguirá haciendo la próxima vez que entre. Así el jardín se va
+llenando de bichos a medida que lee. Lo leído y los bichos que se quedaron se
+guardan en su propio navegador, no en la base de datos.
+
+El patico pasea a su aire por toda la tierra y sube al campo verde: elige un
+punto, va andando, se para y vuelve a elegir. Cuanto más arriba está, más
+pequeño se ve y pasa por detrás de las flores cercanas. Si tocas el suelo, va
+a ese punto exacto.
+
 ## Fotos en las notas
 
 Cada nota puede llevar una foto. Antes de subirla se reescala en el propio

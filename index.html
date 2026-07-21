@@ -79,6 +79,21 @@
 
   <p class="pista" id="pista">Toca una flor para leer su nota</p>
 
+  <!-- Rincones del jardín: el campo se recorre por tramos -->
+  <nav class="rincones" id="rincones" hidden aria-label="Rincones del jardín">
+    <button class="rincon-flecha" id="rinconAtras" aria-label="Rincón anterior">‹</button>
+    <span class="rincon-puntos" id="rinconPuntos"></span>
+    <button class="rincon-flecha" id="rinconSiguiente" aria-label="Rincón siguiente">›</button>
+  </nav>
+
+  <!-- El libro: todas las notas en una lista -->
+  <button class="libro-boton" id="btnLibro" aria-label="Ver todas las notas">
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M4 5.5A2 2 0 0 1 6 4h5v16H6a2 2 0 0 0-2 1.2z"/>
+      <path d="M20 5.5A2 2 0 0 0 18 4h-5v16h5a2 2 0 0 1 2 1.2z"/>
+    </svg>
+  </button>
+
   <!-- Tinte de la escena: unifica la luz de todo el jardín según la hora -->
   <div class="tinte" aria-hidden="true"></div>
 
@@ -118,6 +133,24 @@
       <img class="nota-foto" id="notaFoto" alt="Foto de la nota" decoding="async">
     </figure>
     <p class="nota-texto" id="notaTexto"></p>
+
+    <button class="corazon" id="btnCorazon" type="button"
+            aria-pressed="false" aria-label="Dar corazón a esta nota">
+      <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+        <path d="M12 21s-8-5.2-8-10.4A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 3.6C20 15.8 12 21 12 21z"/>
+      </svg>
+    </button>
+  </article>
+</div>
+
+<!-- ============ MODAL: EL LIBRO DEL JARDÍN ============ -->
+<div class="modal" id="modalLibro" hidden>
+  <div class="modal-fondo" data-cerrar></div>
+  <article class="tarjeta tarjeta--libro">
+    <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    <h2 class="tarjeta-titulo">El jardín entero</h2>
+    <p class="libro-cuenta" id="libroCuenta"></p>
+    <ol class="libro-lista" id="libroLista"></ol>
   </article>
 </div>
 
@@ -194,6 +227,7 @@
 <script src="js/config.js"></script>
 <script src="js/flores-svg.js"></script>
 <script src="js/datos.js"></script>
+<script src="js/bichos.js"></script>
 <script src="js/app.js"></script>
 <script src="js/cielo.js"></script>
 <script src="js/musica.js"></script>

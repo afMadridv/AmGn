@@ -45,6 +45,7 @@
       especie: fila.especie || fila.emoji || 'lirio',
       hue:    Number(fila.hue) || 0,
       foto:   fila.foto || null,
+      corazon: Boolean(fila.corazon),
       x:      Number(fila.x),
       y:      Number(fila.y),
       fecha:  fila.created_at || fila.fecha || new Date().toISOString()
@@ -111,6 +112,13 @@
 
     async borrar(id) {
       const { error } = await sb.from(TABLA).delete().eq('id', id);
+      if (error) throw error;
+    },
+
+    // Ella no tiene cuenta: el corazón se pone con una función del servidor
+    // que sólo sabe hacer eso. Ver dar_corazon() en sql/instalar.sql.
+    async darCorazon(id) {
+      const { error } = await sb.rpc('dar_corazon', { flor_id: id });
       if (error) throw error;
     },
 
@@ -189,6 +197,12 @@
       this._guardar(this._leer().filter(f => f.id !== id));
     },
 
+    async darCorazon(id) {
+      const todas = this._leer();
+      const f = todas.find(x => x.id === id);
+      if (f) { f.corazon = true; this._guardar(todas); }
+    },
+
     suscribir(cb) {
       alCambiar = cb;
       // Sincroniza entre pestañas del mismo navegador.
@@ -214,6 +228,7 @@
     listar:    ()   => impl.listar(),
     sembrar:   f    => impl.sembrar(f),
     subirFoto: a    => impl.subirFoto(a),
+    darCorazon: id  => impl.darCorazon(id),
     borrar:    id   => impl.borrar(id),
     suscribir: cb   => impl.suscribir(cb),
     entrar:    (e,p)=> impl.entrar(e, p),

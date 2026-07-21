@@ -75,12 +75,13 @@
     if (!estrellas || estrellas.childElementCount) return;
     for (let capa = 0; capa < 3; capa++) {
       const puntos = [];
-      const cuantas = capa === 2 ? 10 : 26;
+      const cuantas = capa === 2 ? 14 : 30;
       for (let i = 0; i < cuantas; i++) {
         const x = (Math.random() * 100).toFixed(2);
         const y = (Math.random() * 82).toFixed(2);
-        const r = capa === 2 ? 1.6 : (Math.random() < .3 ? 1.2 : .8);
-        const brillo = (capa === 2 ? .95 : .5 + Math.random() * .45).toFixed(2);
+        // La capa 2 son las estrellas grandes; las otras, polvo de fondo.
+        const r = capa === 2 ? 2.4 : (Math.random() < .35 ? 1.7 : 1.1);
+        const brillo = (capa === 2 ? 1 : .72 + Math.random() * .28).toFixed(2);
         puntos.push(`${x}vw ${y}vh 0 ${r.toFixed(1)}px rgba(255,255,255,${brillo})`);
       }
       const d = document.createElement('i');
@@ -93,6 +94,8 @@
   }
 
   /* ------------------------------------------------------------ ciclo ---- */
+  let anterior = null;
+
   function actualizar() {
     const h = horaBogota();
     const m = momento(h);
@@ -102,6 +105,14 @@
     colocar(m === 'noche' ? luna : sol, t);
 
     if (m === 'noche') sembrarEstrellas();
+
+    // Los bichos cambian con la hora: de noche sólo luciérnagas. Se repuebla
+    // sólo al cambiar de momento, no en cada repaso del minuto.
+    const eraDeNoche = anterior === 'noche';
+    if (window.Bichos && (anterior === null || eraDeNoche !== (m === 'noche'))) {
+      Bichos.poblar(m);
+    }
+    anterior = m;
   }
 
   actualizar();
