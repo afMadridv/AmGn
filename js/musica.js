@@ -124,7 +124,18 @@
     const { titulo, tapa } = await pedirOEmbed(uri);
     if (uri !== uriPintada) return;      // ya cambió de canción
 
-    if (!deLista && titulo) el.nombre.textContent = titulo;
+    if (!deLista && titulo) {
+      // Sin lista, lo que suena es la playlist entera y Spotify informa de
+      // ella, no de la canción. Poner ahí el nombre de la lista haría creer
+      // que la canción se llama así: se dice lo que es y punto.
+      if (/:(track|episode):/.test(uri)) {
+        el.nombre.textContent = titulo;
+      } else {
+        el.nombre.textContent = 'Sonando';
+        el.artista.textContent = 'de la lista ' + titulo;
+        el.artista.hidden = false;
+      }
+    }
     el.boton.title = el.nombre.textContent;
     if (tapa) { el.tapa.src = tapa; el.tapa.hidden = false; }
     pintar();
@@ -342,6 +353,9 @@
   el.boton.addEventListener('click', () => {
     const abierto = el.caja.classList.toggle('abierta');
     el.boton.setAttribute('aria-expanded', String(abierto));
+    // Sin lista, el reproductor de Spotify es lo único que enseña la canción
+    // y deja saltar: se abre solo, que si no el panel se queda a medias.
+    if (abierto && !conLista()) el.caja.classList.add('con-lista');
     if (abierto && !sonando) arrancar();
   });
 

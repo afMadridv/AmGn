@@ -24,6 +24,8 @@
   const CFG   = window.CONFIG;
   const TABLA = 'flores';
   const LLAVE = 'patico:flores';
+  const OBRAS = 'obras';
+  const LLAVE_OBRAS = 'patico:obras';
 
   // Con ?demo=1 la app trabaja contra localStorage aunque haya credenciales:
   // sirve para probar cambios sin tocar el jardín de verdad.
@@ -36,6 +38,29 @@
   let sb = null;
   let alCambiar = () => {};
   let alEstado  = () => {};
+
+  /* ------------------------------------------------------ reducir fotos --
+     Las fotos del móvil pesan varios megas. Se reescalan y recomprimen en el
+     propio teléfono antes de subirlas: sube rápido y se abren sin gastar
+     datos. Lo usan tanto las notas como la galería.                        */
+  function reducirImagen(archivo, maxLado = 1600, calidad = 0.82) {
+    return new Promise((ok, mal) => {
+      const url = URL.createObjectURL(archivo);
+      const im = new Image();
+      im.onload = () => {
+        URL.revokeObjectURL(url);
+        const escala = Math.min(1, maxLado / Math.max(im.width, im.height));
+        const c = document.createElement('canvas');
+        c.width  = Math.round(im.width  * escala);
+        c.height = Math.round(im.height * escala);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        c.toBlob(b => b ? ok(b) : mal(new Error('No pude procesar la imagen')),
+                 'image/jpeg', calidad);
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); mal(new Error('Esa imagen no se puede leer')); };
+      im.src = url;
+    });
+  }
 
   /* ---------- normalización: la fila de la BD -> objeto de la app -------- */
   function aFlor(fila) {
@@ -154,6 +179,61 @@
     async sesion() {
       const { data } = await sb.auth.getSession();
       return Boolean(data.session);
+    },
+
+    /* ------------------------------------------------------- la galería --
+       Colgar no pide cuenta: el enlace es de ella. Quitar, comentar y marcar
+       favoritos sí, y de eso se encarga el RLS.                            */
+    arte: {
+      async listar() {
+        const { data, error } = await sb
+          .from(OBRAS).select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+      },
+
+      async publicar({ titulo, descripcion, imagen }) {
+        const nombre = Date.now().toString(36) + '-' +
+                       Math.random().toString(36).slice(2, 8) + '.jpg';
+
+        const { error: errSubida } = await sb.storage
+          .from('galeria').upload(nombre, imagen, { contentType: 'image/jpeg' });
+        if (errSubida) {
+          if (/bucket/i.test(errSubida.message)) {
+            throw new Error('Falta crear la galería: corre sql/instalar.sql');
+          }
+          throw errSubida;
+        }
+
+        const { data: pub } = sb.storage.from('galeria').getPublicUrl(nombre);
+        const { data, error } = await sb.from(OBRAS)
+          .insert({ titulo, descripcion, imagen: pub.publicUrl })
+          .select().single();
+        if (error) throw error;
+        return data;
+      },
+
+      async borrar(id) {
+        const { error } = await sb.from(OBRAS).delete().eq('id', id);
+        if (error) throw error;
+      },
+
+      async comentar(id, texto) {
+        const { error } = await sb.from(OBRAS)
+          .update({ comentario: texto || null }).eq('id', id);
+        if (error) throw error;
+      },
+
+      async marcarFavorito(id, valor) {
+        const { error } = await sb.from(OBRAS).update({ favorito: valor }).eq('id', id);
+        if (error) throw error;
+      },
+
+      suscribir(cb) {
+        sb.channel('galeria')
+          .on('postgres_changes', { event: '*', schema: 'public', table: OBRAS }, cb)
+          .subscribe();
+      }
     }
   };
 
@@ -212,6 +292,51 @@
       alEstado('modo demo');
     },
 
+    /* --------------------------------- la galería, guardada en el propio
+       navegador. La imagen se queda como data URL.                       */
+    arte: {
+      _leer() {
+        try { return JSON.parse(localStorage.getItem(LLAVE_OBRAS)) || []; }
+        catch { return []; }
+      },
+      _guardar(v) { localStorage.setItem(LLAVE_OBRAS, JSON.stringify(v)); },
+
+      async listar() { return this._leer(); },
+
+      async publicar({ titulo, descripcion, imagen }) {
+        const url = await new Promise((ok, mal) => {
+          const fr = new FileReader();
+          fr.onload = () => ok(fr.result);
+          fr.onerror = () => mal(new Error('No pude leer la imagen'));
+          fr.readAsDataURL(imagen);
+        });
+        const obra = {
+          id: 'o_' + Date.now().toString(36),
+          titulo, descripcion, imagen: url,
+          comentario: null, favorito: false,
+          created_at: new Date().toISOString()
+        };
+        const todas = this._leer(); todas.unshift(obra); this._guardar(todas);
+        return obra;
+      },
+
+      async borrar(id) { this._guardar(this._leer().filter(o => o.id !== id)); },
+
+      async comentar(id, texto) {
+        const t = this._leer();
+        const o = t.find(x => x.id === id);
+        if (o) { o.comentario = texto || null; this._guardar(t); }
+      },
+
+      async marcarFavorito(id, valor) {
+        const t = this._leer();
+        const o = t.find(x => x.id === id);
+        if (o) { o.favorito = valor; this._guardar(t); }
+      },
+
+      suscribir() {}
+    },
+
     async entrar(_email, pass) {
       if (pass !== 'demo') throw new Error('En modo demo la contraseña es: demo');
       sessionStorage.setItem('patico:sesion', '1');
@@ -234,6 +359,8 @@
     entrar:    (e,p)=> impl.entrar(e, p),
     salir:     ()   => impl.salir(),
     sesion:    ()   => impl.sesion(),
-    alConectar:cb   => { alEstado = cb; }
+    alConectar:cb   => { alEstado = cb; },
+    reducirImagen,
+    arte: impl.arte
   };
 })();

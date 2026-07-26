@@ -16,6 +16,7 @@ js/app.js          <- interfaz
 js/cielo.js        <- ciclo día/noche con la hora de Colombia
 js/bichos.js       <- mariposas, abejas, mariquitas y luciérnagas
 js/musica.js       <- reproductor de la playlist de Spotify
+js/galeria.js      <- la galería de sus dibujos
 netlify/functions/playlist.js  <- lee las canciones de la playlist
 sql/instalar.sql   <- tabla, permisos, fotos y realtime, todo en uno
 ```
@@ -36,8 +37,11 @@ Abre `muestrario.html` para verlas todas de golpe.
 
 ### 1. Tu usuario del portal
 Supabase → **Authentication → Users → Add user**: correo + contraseña, y marca
-*Auto Confirm User*. Ese es el único usuario que podrá sembrar. Va primero
-porque el script del paso 2 lee ese correo para darle permiso.
+*Auto Confirm User*. Ese es el único usuario que puede sembrar notas, y también
+el que comenta y retira dibujos de la galería. Va primero porque el script del
+paso 2 toma el más antiguo para darle permiso.
+
+Ella no necesita usuario: entra por el enlace y ya.
 
 Además, en **Authentication → Sign In / Providers → Email**, apaga
 *Enable Sign Ups* para que nadie más pueda crearse una cuenta.
@@ -80,6 +84,32 @@ pedirá la contraseña.
 - **Tú**: en el jardín, toca la **esquina inferior derecha** (botón invisible),
   entra con tu correo y contraseña, escribe la nota, eliges flor y color,
   *Sembrar*. Aparece al instante en el teléfono de ella.
+
+## La galería
+
+Su sitio para colgar dibujos, con título y con lo que quiera contar de cada
+uno. El botón está en el jardín, bajo el del libro.
+
+- **Ella cuelga sin cuenta ni contraseña.** El enlace es suyo y sólo ella lo
+  tiene; pedirle que inicie sesión para dibujar en su propia galería sobra.
+- **Quitar un dibujo pide tu sesión** —la del portal del jardín—. Es la única
+  puerta cerrada, para que nadie pueda vaciarle la galería de un golpe.
+- **Tú, desde esa misma sesión, le dejas un comentario** en cada dibujo y
+  marcas favoritos. El comentario sale firmado bajo el cuadro.
+
+Los dibujos se reescalan a 2000 px (más que las fotos de las notas, que son
+1600) antes de subirse.
+
+> **Lo que hay que saber:** la clave pública de Supabase vive en este repo. Si
+> el repo es público, cualquiera que lo encuentre puede colgar un dibujo en la
+> galería —no borrar, no leer nada nuevo—. Ponlo en privado
+> (Settings → General → Change visibility) y ese hueco se cierra.
+
+## Volver
+
+Todo lo que se abre dentro del jardín —notas, libro, galería, un dibujo, el
+portal, la música— lleva una flecha arriba a la izquierda, siempre en el mismo
+sitio. Desde un dibujo, la flecha devuelve a la galería, no al jardín.
 
 ## El corazón de ella
 

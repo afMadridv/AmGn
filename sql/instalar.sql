@@ -108,6 +108,85 @@ revoke all on function public.dar_corazon(uuid) from public;
 grant execute on function public.dar_corazon(uuid) to anon, authenticated;
 
 -- --------------------------------------------------------------------------
+-- 2c. La galería de arte
+--     Sus dibujos. Cualquiera que tenga el enlace los ve Y los cuelga, sin
+--     cuenta: el enlace es de ella y sólo ella lo tiene, así que pedirle una
+--     contraseña para dibujar en su propia galería sobra.
+--
+--     Lo que sí queda cerrado es BORRAR y COMENTAR, que piden tu sesión. Así,
+--     si el enlace se le escapara a alguien, lo peor que podría hacer es
+--     colgar algo —que tú quitas en dos toques—, nunca vaciarle la galería.
+--
+--     OJO: la clave pública está en el repo de GitHub. Si el repo es público,
+--     cualquiera que lo encuentre puede colgar dibujos. Ponlo en privado
+--     (Settings → General → Change visibility) y esto deja de ser un problema.
+-- --------------------------------------------------------------------------
+create table if not exists public.obras (
+  id          uuid primary key default gen_random_uuid(),
+  titulo      text        not null check (char_length(titulo) between 1 and 120),
+  descripcion text        check (char_length(descripcion) <= 2000),
+  imagen      text        not null,
+  comentario  text        check (char_length(comentario) <= 600),  -- lo que le dice su fan
+  favorito    boolean     not null default false,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists obras_created_at_idx on public.obras (created_at);
+
+-- Las políticas no pueden mirar `auth.users` por su cuenta: esa tabla no la
+-- lee un usuario normal. Esta función sí, y sólo contesta sí o no.
+create or replace function public.es_de_la_casa()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public, auth
+as $$
+  select coalesce(
+    (auth.jwt() ->> 'email') in (select email from auth.users order by created_at limit 2),
+    false
+  );
+$$;
+
+revoke all on function public.es_de_la_casa() from public;
+grant execute on function public.es_de_la_casa() to authenticated;
+
+alter table public.obras enable row level security;
+
+drop policy if exists "arte a la vista"   on public.obras;
+drop policy if exists "arte lo cuelga la casa" on public.obras;
+drop policy if exists "arte lo retoca la casa" on public.obras;
+drop policy if exists "arte lo quita la casa"  on public.obras;
+
+create policy "arte a la vista"
+  on public.obras for select
+  to anon, authenticated
+  using (true);
+
+create policy "arte lo cuelga la casa"
+  on public.obras for insert
+  to anon, authenticated
+  with check (true);
+
+create policy "arte lo retoca la casa"
+  on public.obras for update
+  to authenticated
+  using (es_de_la_casa())
+  with check (es_de_la_casa());
+
+create policy "arte lo quita la casa"
+  on public.obras for delete
+  to authenticated
+  using (es_de_la_casa());
+
+do $$
+begin
+  alter publication supabase_realtime add table public.obras;
+exception
+  when duplicate_object then null;
+end $$;
+
+-- --------------------------------------------------------------------------
 -- 3. Fotos de las notas
 -- --------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -145,6 +224,36 @@ begin
 end $$;
 
 -- --------------------------------------------------------------------------
+-- 3b. Los dibujos de la galería
+-- --------------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('galeria', 'galeria', true, 10485760,
+        array['image/jpeg','image/png','image/webp','image/gif'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 10485760,
+      allowed_mime_types = array['image/jpeg','image/png','image/webp','image/gif'];
+
+drop policy if exists "galeria a la vista"      on storage.objects;
+drop policy if exists "galeria la cuelga la casa" on storage.objects;
+drop policy if exists "galeria la quita la casa"  on storage.objects;
+
+create policy "galeria a la vista"
+  on storage.objects for select
+  to anon, authenticated
+  using (bucket_id = 'galeria');
+
+create policy "galeria la cuelga la casa"
+  on storage.objects for insert
+  to anon, authenticated
+  with check (bucket_id = 'galeria');
+
+create policy "galeria la quita la casa"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'galeria' and es_de_la_casa());
+
+-- --------------------------------------------------------------------------
 -- 4. Tiempo real
 -- --------------------------------------------------------------------------
 do $$
@@ -166,6 +275,10 @@ select
   (select count(*) from pg_policies
     where schemaname = 'storage' and tablename = 'objects'
       and policyname like 'fotos%')                                     as politicas_fotos,
-  (select public from storage.buckets where id = 'notas')               as bucket_publico,
+  (select public from storage.buckets where id = 'notas')               as bucket_notas,
+  (select public from storage.buckets where id = 'galeria')             as bucket_galeria,
+  (select count(*) from pg_policies
+    where schemaname = 'public' and tablename = 'obras')                as politicas_galeria,
+  (select count(*) from auth.users)                                     as usuarios,
   (select count(*) from pg_proc where proname = 'dar_corazon')          as funcion_corazon,
   (select email from auth.users order by created_at limit 1)            as duenio;

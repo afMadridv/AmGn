@@ -105,7 +105,10 @@
   }
 
   document.addEventListener('click', e => {
-    if (e.target.matches('[data-cerrar]')) cerrar(e.target.closest('.modal'));
+    // `closest` y no `matches`: al tocar la flecha, el clic llega en el <svg>
+    // de dentro, no en el botón.
+    const salida = e.target.closest('[data-cerrar]');
+    if (salida) cerrar(salida.closest('.modal'));
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -488,30 +491,8 @@
   /* ------------------------------------------------------ foto de la nota */
   let fotoElegida = null;   // Blob ya reducido, listo para subir
 
-  // Las fotos del móvil pesan varios megas. Se reescalan y recomprimen en el
-  // propio teléfono: sube rápido y ella la abre sin gastar datos.
-  function reducir(archivo) {
-    return new Promise((ok, mal) => {
-      const url = URL.createObjectURL(archivo);
-      const im = new Image();
-      im.onload = () => {
-        URL.revokeObjectURL(url);
-        const lado = Math.max(im.width, im.height);
-        const escala = Math.min(1, CFG.FOTO_MAX_LADO / lado);
-        const c = document.createElement('canvas');
-        c.width  = Math.round(im.width  * escala);
-        c.height = Math.round(im.height * escala);
-        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        c.toBlob(
-          b => b ? ok(b) : mal(new Error('No pude procesar la imagen')),
-          'image/jpeg',
-          CFG.FOTO_CALIDAD
-        );
-      };
-      im.onerror = () => { URL.revokeObjectURL(url); mal(new Error('Esa imagen no se puede leer')); };
-      im.src = url;
-    });
-  }
+  // El reescalado vive en datos.js, que es quien prepara lo que se sube.
+  const reducir = a => Datos.reducirImagen(a, CFG.FOTO_MAX_LADO, CFG.FOTO_CALIDAD);
 
   function pintarPrevia(blob) {
     if (el.fotoPrevia.src.startsWith('blob:')) URL.revokeObjectURL(el.fotoPrevia.src);
@@ -679,6 +660,10 @@
     cerrar(el.modalSembrar);
     aviso('Sesión cerrada');
   });
+
+  // Lo que la galería necesita del jardín: sus modales y sus avisos, para que
+  // todo se abra y se anuncie igual.
+  window.Jardin = { abrirModal: abrir, cerrarModal: cerrar, aviso, fechaLarga };
 
   /* ------------------------------------------------------------- arranque */
   (async function inicio() {
