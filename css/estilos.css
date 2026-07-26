@@ -736,10 +736,12 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 /* Late mientras suena, para que se note que hay música. */
 .musica[data-sonando="si"] .nota { animation: latir 1.8s ease-in-out infinite; }
 
+.musica-boton .musica-txt { max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .musica-panel {
-  width: min(78vw, 320px);
-  padding: 30px 10px 10px;
-  border-radius: 16px;
+  width: min(82vw, 320px);
+  padding: 32px 14px 14px;
+  border-radius: 18px;
   background: var(--crema);
   box-shadow: var(--sombra);
   position: relative;
@@ -747,15 +749,195 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 }
 .musica.abierta .musica-panel { display: block; }
 .cerrar--musica { top: 2px; right: 4px; width: 32px; height: 32px; font-size: 1.4rem; }
-.musica-nota {
-  margin: 8px 2px 0;
+
+/* ---- la canción que suena ---- */
+.cancion { display: flex; align-items: center; gap: 11px; min-height: 52px; }
+.cancion-tapa {
+  width: 52px; height: 52px; flex: none;
+  border-radius: 9px;
+  object-fit: cover;
+  background: #efe4d8;
+  box-shadow: 0 3px 8px rgba(60,40,35,.2);
+}
+.cancion-tapa[hidden] { display: none; }
+.cancion-datos { min-width: 0; }
+.cancion-nombre {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.25;
+  /* Dos líneas y corta: los títulos largos si no rompen la tarjeta. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cancion-artista {
+  margin: 1px 0 0;
+  font-size: .76rem;
+  color: var(--tinta-suave);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cancion-artista[hidden] { display: none; }
+.cancion-aviso {
+  margin: 3px 0 0;
+  font-size: .66rem;
+  line-height: 1.3;
+  color: var(--tinta-suave);
+}
+.cancion-aviso[hidden] { display: none; }
+
+/* ---- barra de progreso ---- */
+.barra {
+  position: relative;
+  height: 5px;
+  margin: 14px 0 5px;
+  border-radius: 999px;
+  background: #e8dbcd;
+  cursor: pointer;
+  touch-action: none;      /* si no, el móvil interpreta el arrastre como scroll */
+}
+.barra::after {            /* zona de toque más ancha que la línea */
+  content: ''; position: absolute; inset: -11px 0;
+}
+.barra-relleno {
+  height: 100%; width: 0;
+  border-radius: 999px;
+  background: var(--acento);
+  transition: width .25s linear;
+}
+.barra.tocando .barra-relleno { transition: none; }
+.barra-relleno::after {
+  content: '';
+  position: absolute; top: 50%; right: 0;
+  width: 11px; height: 11px;
+  translate: 50% -50%;
+  border-radius: 50%;
+  background: var(--acento);
+  box-shadow: 0 1px 4px rgba(60,40,35,.3);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.barra:hover .barra-relleno::after,
+.barra.tocando .barra-relleno::after,
+.barra:focus-visible .barra-relleno::after { opacity: 1; }
+.barra:focus-visible { outline: 2px solid var(--acento); outline-offset: 6px; }
+
+.tiempos {
+  display: flex; justify-content: space-between;
+  font-size: .66rem;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- botones ---- */
+.controles {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 12px 0 4px;
+}
+.ctrl {
+  display: grid; place-items: center;
+  width: 36px; height: 36px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: none;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  transition: color .2s ease, background .2s ease, transform .2s cubic-bezier(.16,1,.3,1);
+}
+.ctrl:hover { color: var(--acento); background: rgba(216,116,143,.12); }
+.ctrl:active { transform: scale(.9); }
+
+.ctrl--salto { color: var(--tinta); }
+.ctrl--play {
+  width: 50px; height: 50px;
+  margin: 0 2px;
+  background: var(--acento);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(216,116,143,.36);
+}
+.ctrl--play:hover { background: var(--acento-osc); color: #fff; }
+/* Un solo botón con los dos iconos: se enseña el que toca. */
+.ctrl--play .icono-pausa { display: none; }
+.ctrl--play.sonando .icono-play  { display: none; }
+.ctrl--play.sonando .icono-pausa { display: block; }
+.musica.con-lista #btnLista { color: var(--acento); background: rgba(216,116,143,.14); }
+/* Sin lista no hay a dónde saltar: esos botones sobran. */
+.musica.sin-lista .ctrl--salto { display: none; }
+
+/* ---- las canciones de la playlist ---- */
+.lista-canciones {
+  list-style: none;
+  margin: 0; padding: 0;
+  max-height: 0;
+  overflow: hidden auto;
+  opacity: 0;
+  transition: max-height .35s cubic-bezier(.16,1,.3,1), opacity .3s ease, margin .35s ease;
+}
+.musica.con-lista .lista-canciones {
+  max-height: 42dvh;
+  margin-top: 10px;
+  opacity: 1;
+}
+.musica.sin-lista .lista-canciones { display: none; }
+
+.cancion-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0; border-radius: 9px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background .2s ease;
+}
+.cancion-item:hover { background: #f6ece0; }
+.cancion-item.activa { background: #fdeef2; }
+.cancion-num {
+  width: 17px; flex: none;
   font-size: .68rem;
   color: var(--tinta-suave);
-  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
-/* El controlador de Spotify sustituye el div por su iframe, así que el estilo
-   se apunta al panel, no al hueco. */
-.musica-panel iframe { border-radius: 12px; display: block; width: 100%; }
+.cancion-item.activa .cancion-num { color: var(--acento); font-weight: 600; }
+.cancion-info { min-width: 0; display: grid; }
+.cancion-t {
+  font-size: .84rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cancion-item.activa .cancion-t { color: var(--acento-osc); font-weight: 600; }
+.cancion-a {
+  font-size: .68rem;
+  color: var(--tinta-suave);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- el reproductor de Spotify ----
+   Va escondido: el mando es el de arriba. No se usa `display:none` porque, si
+   el iframe sale del flujo, el navegador puede cortar el sonido; se le quita
+   el alto y basta. Sólo se enseña cuando no hubo lista y hace falta para
+   poder saltar de canción. */
+.lista-spotify {
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: height .35s cubic-bezier(.16,1,.3,1), opacity .3s ease, margin .35s ease;
+}
+.musica.sin-lista.con-lista .lista-spotify {
+  height: 352px;
+  margin-top: 10px;
+  opacity: 1;
+  pointer-events: auto;
+}
+.lista-spotify iframe { border-radius: 12px; display: block; width: 100%; }
+
+.musica-enlace {
+  display: block;
+  margin-top: 10px;
+  font-size: .7rem;
+  text-align: center;
+  color: #1a9d4c;
+  text-decoration: none;
+}
+.musica-enlace:hover { text-decoration: underline; }
 
 /* ---------------------------------------------------------- rincones ---- */
 .rincones {

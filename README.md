@@ -14,7 +14,9 @@ js/flores-svg.js   <- ramo y catálogo de 15 flores, dibujadas a mano en vector
 js/datos.js        <- Supabase (tiempo real + auth) o localStorage
 js/app.js          <- interfaz
 js/cielo.js        <- ciclo día/noche con la hora de Colombia
-js/musica.js       <- playlist de Spotify
+js/bichos.js       <- mariposas, abejas, mariquitas y luciérnagas
+js/musica.js       <- reproductor de la playlist de Spotify
+netlify/functions/playlist.js  <- lee las canciones de la playlist
 sql/instalar.sql   <- tabla, permisos, fotos y realtime, todo en uno
 ```
 
@@ -153,16 +155,45 @@ Para ver otra hora sin esperarla, añade `?hora=` a la URL: `?hora=22` (noche),
 
 ## Música
 
-La playlist de Spotify se lee en vivo desde `SPOTIFY_PLAYLIST` (config.js): si
-añades canciones, aparecen solas. Límites que impone Spotify, no el código:
+Spotify pone el sonido; el mando es nuestro. Su reproductor sigue en la página
+pero escondido, y desde fuera se le dice qué tocar. Lo que se ve es un panel a
+juego con el jardín: carátula, nombre y artista, barra de progreso arrastrable,
+anterior, play/pausa, siguiente, volver al principio y la lista entera para
+elegir. En la pastilla de arriba se lee lo que suena sin abrir nada.
 
-- Los navegadores no dejan sonar audio sin un gesto del usuario. Arranca con el
-  toque del ramo; en iOS puede hacer falta tocar ▶ dentro del reproductor.
-- Sin sesión de Spotify iniciada suenan adelantos de 30 s. Con sesión (mejor
-  Premium) suena la canción completa.
-- No hay control de volumen en la IFrame API: "silenciar" pausa.
-- El nombre de la canción no se puede leer por código (el iframe es de otro
-  dominio). Se ve abriendo el panel, que es el reproductor de Spotify.
+La pieza que lo hace posible es `netlify/functions/playlist.js`. El navegador
+no puede leer las canciones de una playlist —CORS bloquea la página del embed
+y la API oficial pide credenciales que no pueden vivir en el frontend—, pero un
+servidor sí. Esa función pide la misma página pública del embed, saca título,
+artista y duración de cada canción, y las sirve. Con esa lista en la mano el
+reproductor carga las canciones **una a una** con `loadUri`, y de ahí salen el
+anterior/siguiente y el nombre siempre correcto.
+
+Si la función falla, se cae con elegancia al modo simple: suena la playlist
+entera del tirón, el nombre se pregunta al oEmbed público de Spotify y el botón
+de la lista despliega el reproductor de Spotify para poder saltar. Los botones
+de anterior y siguiente se esconden, porque ahí no hay a dónde saltar.
+
+Añadir canciones en Spotify basta: la lista se relee en cada visita (con cinco
+minutos de caché).
+
+Lo que impone Spotify y no se puede evitar:
+
+- **Los adelantos.** Sin sesión de Spotify iniciada en ese navegador, los
+  embeds sólo dan un trozo de entre 15 y 30 s según la canción, **y empieza por
+  el medio, no por el principio**. El panel lo avisa con la duración real de
+  ese recorte y ofrece abrir la playlist en Spotify, donde suena entera. Con
+  sesión iniciada (mejor Premium) el aviso desaparece solo.
+- **Volumen.** No existe en la IFrame API: silenciar es pausar.
+- **El final de una canción.** Tampoco se avisa: al llegar al final el cursor
+  se queda clavado y el reproductor sigue diciendo que suena. Por eso el relevo
+  a la siguiente va por temporizador, recalculado en cada aviso de posición.
+- Los navegadores no dejan sonar audio sin un gesto. Arranca con el toque del
+  ramo; en iOS puede hacer falta darle al play del panel.
+
+Para probar la función en local hace falta el entorno de Netlify
+(`npx netlify-cli dev`); con un servidor estático corriente se ve el modo
+simple, que también funciona.
 
 ## Modo demo
 

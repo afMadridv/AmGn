@@ -1,7 +1,10 @@
 # Sitio estático: no hay nada que compilar, se publica la carpeta tal cual.
+# Lo único con servidor es la función que lee la lista de canciones de la
+# playlist, porque eso el navegador no lo puede hacer (CORS).
 [build]
   publish = "."
   command = ""
+  functions = "netlify/functions"
 
 # El HTML no se cachea, para que un cambio se vea al recargar. Los ficheros
 # de css/js sí, pero poco: el sitio es pequeño y conviene que llegue fresco.
