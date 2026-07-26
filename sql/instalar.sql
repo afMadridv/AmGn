@@ -126,12 +126,45 @@ create table if not exists public.obras (
   titulo      text        not null check (char_length(titulo) between 1 and 120),
   descripcion text        check (char_length(descripcion) <= 2000),
   imagen      text        not null,
+  marco       text        not null default 'blanco',   -- el marco que ella elige
   comentario  text        check (char_length(comentario) <= 600),  -- lo que le dice su fan
-  favorito    boolean     not null default false,
+  corazon     boolean     not null default false,
   created_at  timestamptz not null default now()
 );
 
 create index if not exists obras_created_at_idx on public.obras (created_at);
+
+-- La primera versión llamaba `favorito` al corazón. Se renombra sólo si hace
+-- falta, para que este archivo se pueda ejecutar las veces que sea.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'obras'
+               and column_name = 'favorito')
+     and not exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'obras'
+               and column_name = 'corazon')
+  then
+    alter table public.obras rename column favorito to corazon;
+  end if;
+end $$;
+
+alter table public.obras add column if not exists marco   text    not null default 'blanco';
+alter table public.obras add column if not exists corazon boolean not null default false;
+
+-- El corazón de sus dibujos, igual que el de las notas: se da una vez y no se
+-- puede quitar. Va por función para no tener que abrirle un UPDATE a nadie.
+create or replace function public.dar_corazon_obra(obra_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update public.obras set corazon = true where id = obra_id;
+$$;
+
+revoke all on function public.dar_corazon_obra(uuid) from public;
+grant execute on function public.dar_corazon_obra(uuid) to anon, authenticated;
 
 -- Las políticas no pueden mirar `auth.users` por su cuenta: esa tabla no la
 -- lee un usuario normal. Esta función sí, y sólo contesta sí o no.
@@ -280,5 +313,6 @@ select
   (select count(*) from pg_policies
     where schemaname = 'public' and tablename = 'obras')                as politicas_galeria,
   (select count(*) from auth.users)                                     as usuarios,
-  (select count(*) from pg_proc where proname = 'dar_corazon')          as funcion_corazon,
+  (select count(*) from pg_proc
+    where proname in ('dar_corazon', 'dar_corazon_obra', 'es_de_la_casa'))as funciones,
   (select email from auth.users order by created_at limit 1)            as duenio;

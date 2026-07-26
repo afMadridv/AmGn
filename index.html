@@ -273,6 +273,11 @@
                   placeholder="Lo que sentías, lo que estabas escuchando, lo que sea…"></textarea>
       </label>
 
+      <fieldset class="campo">
+        <span>Marco</span>
+        <div class="selector selector--marcos" id="selectorMarco"></div>
+      </fieldset>
+
       <p class="error" id="colgarError" hidden></p>
 
       <div class="acciones">
@@ -295,9 +300,8 @@
   <article class="tarjeta tarjeta--obra">
     <button class="volver" data-cerrar aria-label="Volver al jardín"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
 
-    <div class="obra-marco">
+    <div class="obra-marco" id="obraMarco" data-marco="blanco">
       <img class="obra-imagen" id="obraImagen" alt="" decoding="async">
-      <span class="obra-cinta" id="obraCinta" hidden>El favorito de tu fan</span>
     </div>
 
     <h3 class="obra-titulo" id="obraTituloVer"></h3>
@@ -309,6 +313,13 @@
       <figcaption>— tu fan número uno</figcaption>
     </figure>
 
+    <button class="corazon" id="btnCorazonObra" type="button"
+            aria-pressed="false" aria-label="Dar corazón a este dibujo">
+      <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+        <path d="M12 21s-8-5.2-8-10.4A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 3.6C20 15.8 12 21 12 21z"/>
+      </svg>
+    </button>
+
     <!-- Sólo lo ve él, con la sesión del jardín abierta -->
     <div class="obra-fan" id="obraFan" hidden>
       <label class="campo">
@@ -316,10 +327,7 @@
         <textarea id="fanTexto" rows="2" maxlength="600"
                   placeholder="Dile lo que ves en este dibujo…"></textarea>
       </label>
-      <div class="acciones">
-        <button class="btn btn--fantasma" type="button" id="btnFavorito">Marcar favorito</button>
-        <button class="btn btn--principal" type="button" id="btnGuardarFan">Guardar</button>
-      </div>
+      <button class="btn btn--principal" type="button" id="btnGuardarFan">Guardar</button>
     </div>
 
     <button class="enlace-tenue enlace-tenue--peligro" type="button" id="btnBorrarObra" hidden>

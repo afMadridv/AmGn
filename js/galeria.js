@@ -8,8 +8,10 @@
        sesión para dibujar en su propia galería sobra.
      · QUITAR un dibujo sí pide la sesión del jardín. Es la única puerta que
        queda cerrada, para que nadie pueda vaciarle la galería de un golpe.
-     · Él, desde esa misma sesión, deja su COMENTARIO de fan y marca
-       FAVORITOS.
+     · Él, desde esa misma sesión, deja su COMENTARIO de fan.
+     · El CORAZÓN funciona como el de las notas, pero al revés: allí ella se
+       lo da a lo que él escribe, aquí él se lo da a lo que ella dibuja. Se da
+       una vez y no se quita.
 
    Quien manda de verdad es el RLS de sql/instalar.sql: aquí sólo se decide
    qué botones se enseñan.
@@ -32,6 +34,7 @@
     obraTexto:   $('#obraTexto'),
     obraTitulo:  $('#obraTitulo'),
     obraDesc:    $('#obraDescripcion'),
+    selMarco:    $('#selectorMarco'),
     colgarError: $('#colgarError'),
     btnColgar:   $('#btnColgar'),
     btnCancelarObra: $('#btnCancelarObra'),
@@ -39,16 +42,16 @@
     btnNueva:    $('#btnNuevaObra'),
 
     modalObra:   $('#modalObra'),
+    obraMarco:   $('#obraMarco'),
     obraImagen:  $('#obraImagen'),
-    obraCinta:   $('#obraCinta'),
     obraTituloVer: $('#obraTituloVer'),
     obraFecha:   $('#obraFecha'),
     obraDescVer: $('#obraDescripcionVer'),
     obraComentario: $('#obraComentario'),
     obraComentarioTexto: $('#obraComentarioTexto'),
+    btnCorazon:  $('#btnCorazonObra'),
     obraFan:     $('#obraFan'),
     fanTexto:    $('#fanTexto'),
-    btnFavorito: $('#btnFavorito'),
     btnGuardarFan: $('#btnGuardarFan'),
     btnBorrarObra: $('#btnBorrarObra')
   };
@@ -61,8 +64,27 @@
   let esFan   = false;     // él, con la sesión del jardín abierta
   let abierta = null;      // la obra que se está mirando
   let dibujo  = null;      // el archivo ya reducido, listo para subir
+  let marco   = CFG.MARCOS[0].clave;
 
   el.titulo.textContent = 'La galería de ' + CFG.PARA;
+
+  /* ------------------------------------------------------ elegir el marco */
+  CFG.MARCOS.forEach((m, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'opcion opcion--marco' + (i === 0 ? ' activa' : '');
+    b.dataset.marco = m.clave;
+    b.title = m.nombre;
+    b.setAttribute('aria-label', 'Marco ' + m.nombre);
+    // Dentro del marco, un trocito de color que hace de cuadro.
+    b.innerHTML = '<span class="muestra-marco" data-marco="' + m.clave + '"><i></i></span>';
+    b.addEventListener('click', () => {
+      marco = m.clave;
+      el.selMarco.querySelectorAll('.opcion').forEach(o => o.classList.remove('activa'));
+      b.classList.add('activa');
+    });
+    el.selMarco.appendChild(b);
+  });
 
   /* ---------------------------------------------------------- la rejilla */
   function pintarRejilla() {
@@ -72,14 +94,15 @@
     obras.forEach(o => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'obra-tarjeta' + (o.favorito ? ' es-favorita' : '');
+      b.className = 'obra-tarjeta';
       b.innerHTML = `
-        <span class="obra-tarjeta-marco">
+        <span class="obra-tarjeta-marco" data-marco="${o.marco || 'blanco'}">
           <img src="${o.imagen}" alt="${(o.titulo || '').replace(/"/g, '&quot;')}"
                loading="lazy" decoding="async">
         </span>
         <span class="obra-tarjeta-pie">
           <span class="obra-tarjeta-titulo">${o.titulo || ''}</span>
+          ${o.corazon ? '<span class="obra-tarjeta-marca obra-tarjeta-marca--corazon" title="Con el corazón de tu fan">♥</span>' : ''}
           ${o.comentario ? '<span class="obra-tarjeta-marca" title="Con nota de tu fan">✎</span>' : ''}
         </span>`;
       b.addEventListener('click', () => verObra(o.id));
@@ -93,46 +116,49 @@
     if (!o) return;
     abierta = o;
 
+    el.obraMarco.dataset.marco = o.marco || 'blanco';
     el.obraImagen.src = o.imagen;
     el.obraImagen.alt = o.titulo || 'Dibujo';
     el.obraTituloVer.textContent = o.titulo || '';
     el.obraFecha.textContent = J().fechaLarga(o.created_at);
     el.obraDescVer.textContent = o.descripcion || '';
     el.obraDescVer.hidden = !o.descripcion;
-    el.obraCinta.hidden = !o.favorito;
 
     el.obraComentario.hidden = !o.comentario;
     el.obraComentarioTexto.textContent = o.comentario || '';
+
+    pintarCorazon();
 
     // Escribir el comentario y quitar el dibujo son cosa suya, con la sesión
     // del jardín abierta.
     el.obraFan.hidden = !esFan;
     el.fanTexto.value = o.comentario || '';
-    pintarBotonFavorito();
     el.btnBorrarObra.hidden = !esFan;
 
     J().abrirModal(el.modalObra);
   }
 
-  function pintarBotonFavorito() {
+  /* -------------------------------------------------------- el corazón -- */
+  function pintarCorazon() {
     if (!abierta) return;
-    el.btnFavorito.textContent = abierta.favorito ? 'Quitar de favoritos' : 'Marcar favorito';
-    el.btnFavorito.classList.toggle('marcado', abierta.favorito);
+    el.btnCorazon.classList.toggle('dado', abierta.corazon);
+    el.btnCorazon.setAttribute('aria-pressed', String(abierta.corazon));
+    el.btnCorazon.disabled = abierta.corazon;   // se da una vez, no se quita
   }
 
-  el.btnFavorito.addEventListener('click', async () => {
-    if (!abierta) return;
-    const nuevo = !abierta.favorito;
-    abierta.favorito = nuevo;
-    pintarBotonFavorito();
-    el.obraCinta.hidden = !nuevo;
+  el.btnCorazon.addEventListener('click', async () => {
+    if (!abierta || abierta.corazon) return;
+    abierta.corazon = true;
+    pintarCorazon();
+    el.btnCorazon.classList.add('latiendo');
+    setTimeout(() => el.btnCorazon.classList.remove('latiendo'), 900);
     try {
-      await Datos.arte.marcarFavorito(abierta.id, nuevo);
+      await Datos.arte.darCorazon(abierta.id);
       pintarRejilla();
     } catch (err) {
-      abierta.favorito = !nuevo;
-      pintarBotonFavorito();
-      J().aviso('No pude guardarlo');
+      abierta.corazon = false;
+      pintarCorazon();
+      J().aviso('No pude guardar el corazón');
       console.error(err);
     }
   });
@@ -215,6 +241,7 @@
       const obra = await Datos.arte.publicar({
         titulo: el.obraTitulo.value.trim(),
         descripcion: el.obraDesc.value.trim(),
+        marco,
         imagen: dibujo
       });
       obras.unshift(obra);

@@ -94,8 +94,14 @@ uno. El botón está en el jardín, bajo el del libro.
   tiene; pedirle que inicie sesión para dibujar en su propia galería sobra.
 - **Quitar un dibujo pide tu sesión** —la del portal del jardín—. Es la única
   puerta cerrada, para que nadie pueda vaciarle la galería de un golpe.
-- **Tú, desde esa misma sesión, le dejas un comentario** en cada dibujo y
-  marcas favoritos. El comentario sale firmado bajo el cuadro.
+- **Ella elige el marco** de cada dibujo, igual que elige la flor y el color de
+  una nota: galería, crema, dorado, madera, negro, rosa, polaroid o pegado con
+  cinta. El marco se ve tanto en la miniatura como en el cuadro grande.
+- **El corazón funciona como el de las notas, pero al revés**: allí ella se lo
+  da a lo que tú escribes, aquí tú se lo das a lo que ella dibuja. Se da una
+  vez y no se quita; en la rejilla queda un ♥ junto al título.
+- **Tú, desde la sesión del jardín, le dejas un comentario** en cada dibujo.
+  Sale firmado bajo el cuadro.
 
 Los dibujos se reescalan a 2000 px (más que las fotos de las notas, que son
 1600) antes de subirse.

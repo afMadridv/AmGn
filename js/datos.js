@@ -192,7 +192,7 @@
         return data || [];
       },
 
-      async publicar({ titulo, descripcion, imagen }) {
+      async publicar({ titulo, descripcion, imagen, marco }) {
         const nombre = Date.now().toString(36) + '-' +
                        Math.random().toString(36).slice(2, 8) + '.jpg';
 
@@ -207,7 +207,7 @@
 
         const { data: pub } = sb.storage.from('galeria').getPublicUrl(nombre);
         const { data, error } = await sb.from(OBRAS)
-          .insert({ titulo, descripcion, imagen: pub.publicUrl })
+          .insert({ titulo, descripcion, marco, imagen: pub.publicUrl })
           .select().single();
         if (error) throw error;
         return data;
@@ -224,8 +224,10 @@
         if (error) throw error;
       },
 
-      async marcarFavorito(id, valor) {
-        const { error } = await sb.from(OBRAS).update({ favorito: valor }).eq('id', id);
+      // El corazón, igual que en las notas: por función, para no abrirle un
+      // UPDATE a nadie. Se da una vez y no se quita.
+      async darCorazon(id) {
+        const { error } = await sb.rpc('dar_corazon_obra', { obra_id: id });
         if (error) throw error;
       },
 
@@ -303,7 +305,7 @@
 
       async listar() { return this._leer(); },
 
-      async publicar({ titulo, descripcion, imagen }) {
+      async publicar({ titulo, descripcion, imagen, marco }) {
         const url = await new Promise((ok, mal) => {
           const fr = new FileReader();
           fr.onload = () => ok(fr.result);
@@ -312,8 +314,8 @@
         });
         const obra = {
           id: 'o_' + Date.now().toString(36),
-          titulo, descripcion, imagen: url,
-          comentario: null, favorito: false,
+          titulo, descripcion, marco, imagen: url,
+          comentario: null, corazon: false,
           created_at: new Date().toISOString()
         };
         const todas = this._leer(); todas.unshift(obra); this._guardar(todas);
@@ -328,10 +330,10 @@
         if (o) { o.comentario = texto || null; this._guardar(t); }
       },
 
-      async marcarFavorito(id, valor) {
+      async darCorazon(id) {
         const t = this._leer();
         const o = t.find(x => x.id === id);
-        if (o) { o.favorito = valor; this._guardar(t); }
+        if (o) { o.corazon = true; this._guardar(t); }
       },
 
       suscribir() {}
