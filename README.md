@@ -95,8 +95,8 @@ uno. El botón está en el jardín, bajo el del libro.
 - **Quitar un dibujo pide tu sesión** —la del portal del jardín—. Es la única
   puerta cerrada, para que nadie pueda vaciarle la galería de un golpe.
 - **Ella elige el marco** de cada dibujo, igual que elige la flor y el color de
-  una nota: galería, crema, dorado, madera, negro, rosa, polaroid o pegado con
-  cinta. El marco se ve tanto en la miniatura como en el cuadro grande.
+  una nota: polaroid, o pegado a la pared con cinta en las cuatro esquinas. El
+  marco se ve tanto en la miniatura como en el cuadro grande.
 - **El corazón funciona como el de las notas, pero al revés**: allí ella se lo
   da a lo que tú escribes, aquí tú se lo das a lo que ella dibuja. Se da una
   vez y no se quita; en la rejilla queda un ♥ junto al título.

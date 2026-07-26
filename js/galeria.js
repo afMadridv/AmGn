@@ -68,6 +68,11 @@
 
   el.titulo.textContent = 'La galería de ' + CFG.PARA;
 
+  // Un dibujo colgado con un marco que ya no existe se enseña con el primero,
+  // en vez de quedarse sin ninguno.
+  const marcoDe = o =>
+    CFG.MARCOS.some(m => m.clave === o.marco) ? o.marco : CFG.MARCOS[0].clave;
+
   /* ------------------------------------------------------ elegir el marco */
   CFG.MARCOS.forEach((m, i) => {
     const b = document.createElement('button');
@@ -96,7 +101,7 @@
       b.type = 'button';
       b.className = 'obra-tarjeta';
       b.innerHTML = `
-        <span class="obra-tarjeta-marco" data-marco="${o.marco || 'blanco'}">
+        <span class="obra-tarjeta-marco" data-marco="${marcoDe(o)}">
           <img src="${o.imagen}" alt="${(o.titulo || '').replace(/"/g, '&quot;')}"
                loading="lazy" decoding="async">
         </span>
@@ -116,7 +121,7 @@
     if (!o) return;
     abierta = o;
 
-    el.obraMarco.dataset.marco = o.marco || 'blanco';
+    el.obraMarco.dataset.marco = marcoDe(o);
     el.obraImagen.src = o.imagen;
     el.obraImagen.alt = o.titulo || 'Dibujo';
     el.obraTituloVer.textContent = o.titulo || '';

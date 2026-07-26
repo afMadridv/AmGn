@@ -764,7 +764,6 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   display: none;
 }
 .musica.abierta .musica-panel { display: block; }
-.cerrar--musica { top: 2px; right: 4px; width: 32px; height: 32px; font-size: 1.4rem; }
 
 /* ---- la canción que suena ---- */
 .cancion { position: relative; display: flex; align-items: center; gap: 13px; min-height: 60px; }
@@ -1175,106 +1174,59 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
    para las muestras del selector: así no hay tres versiones del mismo marco
    que se vayan separando con el tiempo.
    ======================================================================== */
-[data-marco] {
-  --paspartu: 7%;          /* el borde interior blanco */
-  --grosor: 5%;            /* la moldura de fuera */
-  padding: var(--paspartu);
-  border-radius: 3px;
-  background: #fff;
-  border: solid transparent;
-  border-width: var(--grosor);
-}
-[data-marco] > img, [data-marco] > i { border-radius: 1px; }
+[data-marco] { position: relative; }
+[data-marco] > img, [data-marco] > i { display: block; width: 100%; }
 
-/* Galería: paspartú blanco generoso, moldura fina y clara. */
-[data-marco="blanco"] {
-  --paspartu: 9%; --grosor: 3%;
-  background: #fff;
-  border-color: #e8e2da;
-}
-
-/* Crema con filete: el paspartú cálido de las láminas antiguas. */
-[data-marco="crema"] {
-  --paspartu: 9%; --grosor: 4%;
-  background: #fdf6e8;
-  border-color: #d8c9a8;
-  box-shadow: inset 0 0 0 1px #cbb894;
-}
-
-/* Dorado clásico, con el brillo cruzando la moldura. */
-[data-marco="oro"] {
-  --paspartu: 8%; --grosor: 7%;
-  background: #fffdf6;
-  border-color: #d4a437;
-  border-image: linear-gradient(135deg, #f4dc9a, #c8912b 45%, #f7e6ae 60%, #b87d1c) 1;
-  box-shadow: inset 0 0 0 1px rgba(150,110,30,.45);
-}
-
-/* Madera cálida, con la veta insinuada. */
-[data-marco="madera"] {
-  --paspartu: 7%; --grosor: 7%;
-  background: #fffaf2;
-  border-color: #8a5a32;
-  border-image: linear-gradient(135deg, #a97144, #7b4a26 40%, #b98253 55%, #6d4021) 1;
-  box-shadow: inset 0 0 0 1px rgba(90,55,25,.4);
-}
-
-/* Negro fino: el de las fotos de exposición. */
-[data-marco="negro"] {
-  --paspartu: 8%; --grosor: 4%;
-  background: #fff;
-  border-color: #22201e;
-}
-
-/* Rosa suave, a juego con el jardín. */
-[data-marco="rosa"] {
-  --paspartu: 9%; --grosor: 5%;
-  background: #fff6f8;
-  border-color: #eaa6bd;
-  box-shadow: inset 0 0 0 1px rgba(200,110,140,.35);
-}
-
-/* Polaroid: todo el margen abajo, como para escribir debajo. */
+/* Polaroid: margen fino arriba y a los lados, ancho abajo — el hueco de
+   escribir debajo de la foto. */
 [data-marco="polaroid"] {
-  --grosor: 0%;
   padding: 6% 6% 20%;
   border-radius: 2px;
   background: #fffefb;
-  border: 0;
   box-shadow: 0 2px 6px rgba(0,0,0,.12);
 }
 
-/* Con cinta: sin moldura, pegado a la pared con dos trozos de washi. */
-[data-marco="washi"] {
-  --grosor: 0%;
-  position: relative;
-  padding: 0;
-  border: 0;
-  border-radius: 2px;
-  background: none;
-}
-[data-marco="washi"]::before,
-[data-marco="washi"]::after {
+/* Con cinta: sin marco, pegado por las cuatro esquinas.
+   Las cuatro tiras son cuatro degradados de fondo y no cuatro elementos,
+   porque un elemento sólo tiene dos pseudos (::before y ::after) y harían
+   falta cuatro. Cada degradado pinta una banda diagonal dentro de un cuadro
+   de --esquina de lado, colocado en su esquina.
+
+   La banda va perpendicular al eje del degradado: con 135deg (eje hacia
+   abajo-derecha) la tira sube hacia la derecha ↗, que es como cae la cinta
+   en las esquinas superior-izquierda e inferior-derecha; con 45deg baja ↘,
+   que es la de las otras dos. */
+[data-marco="cinta"] { padding: 0; }
+/* Las cintas van en una capa encima de la imagen. Se pintan en `::after` y no
+   en el fondo del propio marco porque el fondo queda por DEBAJO de la imagen;
+   sacarla de ahí pediría un z-index negativo, y eso la escondería también
+   detrás de la tarjeta. */
+[data-marco="cinta"]::after {
+  --esquina: 32%;
+  --cinta: rgba(242, 176, 199, .72);
+  --ancho: 7%;               /* mitad del grosor de la tira */
   content: '';
   position: absolute;
-  width: 34%; height: 13px;
-  background: rgba(240, 170, 195, .62);
-  box-shadow: 0 1px 3px rgba(0,0,0,.12);
-  z-index: 2;
+  /* Se sale un poco del dibujo: la cinta pega el papel a la pared, no acaba
+     justo en el borde. */
+  inset: -6px;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: var(--esquina) var(--esquina);
+  background-position: top left, top right, bottom left, bottom right;
+  background-image:
+    linear-gradient(135deg, transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho))),
+    linear-gradient(45deg,  transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho))),
+    linear-gradient(45deg,  transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho))),
+    linear-gradient(135deg, transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho)));
 }
-[data-marco="washi"]::before { top: -6px; left: -5%; rotate: -7deg; }
-[data-marco="washi"]::after  { top: -6px; right: -5%; rotate: 6deg; }
 
 /* Las muestras del selector: el mismo marco, en pequeño. */
-.selector--marcos { gap: 9px; }
-.opcion--marco { width: 46px; height: 46px; padding: 0; overflow: visible; }
-.muestra-marco { display: block; width: 34px; height: 34px; }
-.muestra-marco > i {
-  display: block; width: 100%; height: 100%;
-  background: linear-gradient(135deg, #f7c5d8, #9fd6c2);
-}
-.muestra-marco[data-marco="washi"]::before,
-.muestra-marco[data-marco="washi"]::after { height: 7px; top: -3px; }
+.selector--marcos { gap: 10px; }
+.opcion--marco { width: 52px; height: 52px; padding: 0; }
+.muestra-marco { display: block; width: 40px; height: 40px; }
+.muestra-marco > i { height: 100%; background: linear-gradient(135deg, #f7c5d8, #9fd6c2); }
+.muestra-marco[data-marco="polaroid"] { padding: 5% 5% 18%; }
 
 .galeria-vacia {
   margin: 6px 0 0;
@@ -1370,7 +1322,6 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 
 .obra-fan { margin-top: 18px; text-align: left; }
 .obra-fan[hidden] { display: none; }
-.btn--fantasma.marcado { border-color: var(--acento); color: var(--acento); background: #fdeef2; }
 
 /* ----------------------------------------------------------- corazón ---- */
 .corazon {
@@ -1484,15 +1435,6 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 @keyframes subir {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: none; }
-}
-
-.cerrar {
-  position: absolute; top: 8px; right: 12px;
-  width: 38px; height: 38px;
-  border: 0; background: none;
-  font-size: 1.7rem; line-height: 1;
-  color: var(--tinta-suave);
-  cursor: pointer;
 }
 
 /* La flecha de volver: arriba a la izquierda en todo lo que se abre dentro
