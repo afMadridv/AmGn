@@ -4,7 +4,7 @@
    Spotify pone el sonido; el mando es nuestro. Su reproductor sigue en la
    página, escondido, y desde fuera se le va diciendo qué tocar.
 
-   La clave es la lista de canciones: la sirve netlify/functions/playlist.js,
+   La clave es la lista de canciones: la sirve api/playlist.js,
    que la lee desde el servidor (el navegador no puede, CORS lo impide). Con
    esa lista en la mano se puede:
 
@@ -14,7 +14,7 @@
      · encadenar sola la siguiente cuando una termina,
      · y elegir cualquiera de un vistazo.
 
-   Si la función falla (o se abre el proyecto sin Netlify), se cae con
+   Si la función falla (o se abre sin un servidor que la ejecute), se cae con
    elegancia al modo de antes: suena la playlist entera del tirón, el nombre
    se pregunta al oEmbed y para saltar se despliega el reproductor de Spotify.
 
@@ -201,7 +201,7 @@
   /* ------------------------------------------------- carga del embed ----- */
   async function pedirLista() {
     try {
-      const r = await fetch('/.netlify/functions/playlist?id=' + CFG.SPOTIFY_PLAYLIST);
+      const r = await fetch('/api/playlist?id=' + CFG.SPOTIFY_PLAYLIST);
       if (!r.ok) throw new Error('estado ' + r.status);
       const datos = await r.json();
       canciones = Array.isArray(datos.canciones) ? datos.canciones : [];

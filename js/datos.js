@@ -35,6 +35,10 @@
     CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase
   );
 
+  // Lo que se dice cuando el RLS deja pasar la petición pero no toca ninguna
+  // fila: casi siempre es que la sesión del portal ya no está abierta.
+  const SIN_PERMISO = 'No se pudo: abre el portal e inténtalo otra vez.';
+
   let sb = null;
   let alCambiar = () => {};
   let alEstado  = () => {};
@@ -135,9 +139,12 @@
       return data.publicUrl;
     },
 
+    // Igual que en la galería: si el RLS no deja, no hay error, hay cero
+    // filas borradas. Hay que mirarlo para no cantar victoria en falso.
     async borrar(id) {
-      const { error } = await sb.from(TABLA).delete().eq('id', id);
+      const { data, error } = await sb.from(TABLA).delete().eq('id', id).select();
       if (error) throw error;
+      if (!data || !data.length) throw new Error(SIN_PERMISO);
     },
 
     // Ella no tiene cuenta: el corazón se pone con una función del servidor
@@ -213,15 +220,28 @@
         return data;
       },
 
-      async borrar(id) {
-        const { error } = await sb.from(OBRAS).delete().eq('id', id);
+      // Ojo con el RLS: si no deja borrar, Postgres no da error, simplemente
+      // no borra ninguna fila. Sin mirar cuántas cayeron, la app decía que sí
+      // y el dibujo reaparecía al recargar. Por eso el `.select()`.
+      async borrar(id, imagen) {
+        const { data, error } = await sb.from(OBRAS).delete().eq('id', id).select();
         if (error) throw error;
+        if (!data || !data.length) throw new Error(SIN_PERMISO);
+
+        // La fila ya no está; el archivo tampoco debería quedarse ocupando
+        // sitio. Si falla, no se avisa: el dibujo ya desapareció de la vista.
+        const nombre = (imagen || '').split('/galeria/')[1];
+        if (nombre) {
+          const { error: err } = await sb.storage.from('galeria').remove([nombre]);
+          if (err) console.info('El dibujo se quitó, pero su archivo sigue ahí:', err.message);
+        }
       },
 
       async comentar(id, texto) {
-        const { error } = await sb.from(OBRAS)
-          .update({ comentario: texto || null }).eq('id', id);
+        const { data, error } = await sb.from(OBRAS)
+          .update({ comentario: texto || null }).eq('id', id).select();
         if (error) throw error;
+        if (!data || !data.length) throw new Error(SIN_PERMISO);
       },
 
       // El corazón, igual que en las notas: por función, para no abrirle un

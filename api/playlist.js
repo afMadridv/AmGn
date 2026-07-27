@@ -43,37 +43,33 @@ async function leerPlaylist(id) {
   return { nombre: entidad?.name || '', canciones };
 }
 
-exports.handler = async (event) => {
-  // Sólo se aceptan ids con la forma de un id de Spotify: nada de meter
-  // rutas raras en la URL que se pide.
-  const id = String(event.queryStringParameters?.id || '').replace(/[^A-Za-z0-9]/g, '');
+module.exports = async (req, res) => {
+  // Sólo se aceptan ids con la forma de un id de Spotify: nada de meter rutas
+  // raras en la URL que se pide.
+  const crudo = (req.query && req.query.id) ||
+                new URL(req.url, 'http://x').searchParams.get('id') || '';
+  const id = String(crudo).replace(/[^A-Za-z0-9]/g, '');
+
   if (!id) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Falta el id de la playlist' }) };
+    res.status(400).json({ error: 'Falta el id de la playlist' });
+    return;
   }
 
   try {
     const datos = await leerPlaylist(id);
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        // Cinco minutos: si añades canciones, aparecen enseguida sin castigar
-        // a Spotify con una petición por visita.
-        'Cache-Control': 'public, max-age=300'
-      },
-      body: JSON.stringify(datos)
-    };
+    // Cinco minutos: si añades canciones, aparecen enseguida sin castigar a
+    // Spotify con una petición por visita.
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300');
+    res.status(200).json(datos);
   } catch (err) {
-    return {
-      statusCode: 502,
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
-      body: JSON.stringify({ error: err.message })
-    };
+    res.status(502).json({ error: err.message });
   }
 };
 
-// Para poder probarla sin desplegar:  node netlify/functions/playlist.js <id>
+// Para poder probarla sin desplegar:  node api/playlist.js <id>
+module.exports.leerPlaylist = leerPlaylist;
 if (require.main === module) {
-  exports.handler({ queryStringParameters: { id: process.argv[2] } })
-    .then(r => console.log(r.statusCode, r.body));
+  leerPlaylist(process.argv[2])
+    .then(d => console.log(JSON.stringify(d).slice(0, 400)))
+    .catch(e => console.log('ERROR', e.message));
 }

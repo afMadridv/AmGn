@@ -1,0 +1,38 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "headers": [
+    {
+      "//": "Una página web NO puede leer archivos del ordenador de quien la visita, ni con 'Inspeccionar elemento': ahí sólo se ve lo que la propia página trae. Lo que sí se puede endurecer es lo de fuera, y de eso van estas cabeceras. El 'unsafe-eval' está porque la API de Spotify usa eval() y sin él la música no arranca; sólo permite que los scripts YA permitidos lo usen, meter uno nuevo sigue cerrado.",
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net https://open.spotify.com https://*.spotifycdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.scdn.co https://*.spotifycdn.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://open.spotify.com https://*.spotifycdn.com; frame-src https://open.spotify.com; media-src 'self' https://*.scdn.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), camera=(), microphone=(), payment=(), usb=(), midi=(), magnetometer=(), accelerometer=(), gyroscope=(), serial=(), bluetooth=(), idle-detection=()"
+        },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" }
+      ]
+    },
+    {
+      "//": "El HTML no se cachea, para que un cambio se vea al recargar.",
+      "source": "/(.*).html",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "//": "El css y el js, poco: el sitio es pequeño y conviene que llegue fresco.",
+      "source": "/(css|js)/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300" }
+      ]
+    }
+  ]
+}

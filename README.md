@@ -17,7 +17,7 @@ js/cielo.js        <- ciclo día/noche con la hora de Colombia
 js/bichos.js       <- mariposas, abejas, mariquitas y luciérnagas
 js/musica.js       <- reproductor de la playlist de Spotify
 js/galeria.js      <- la galería de sus dibujos
-netlify/functions/playlist.js  <- lee las canciones de la playlist
+api/playlist.js    <- lee las canciones de la playlist (funcion serverless)
 sql/instalar.sql   <- tabla, permisos, fotos y realtime, todo en uno
 ```
 
@@ -70,9 +70,9 @@ La anon key es pública por diseño; lo que protege los datos es el RLS del paso
 **Nunca** pongas ahí la `service_role`.
 
 ### 4. Publicar
-Cualquier hosting estático sirve. Netlify: arrastra la carpeta a
-[app.netlify.com/drop](https://app.netlify.com/drop). También GitHub Pages,
-Vercel o Cloudflare Pages. Le mandas el enlace y listo.
+Está en Vercel: conecta el repo y listo. Necesita hosting con funciones
+(Vercel, Netlify) para que el reproductor traiga la lista de canciones; con
+un hosting sólo estático la música cae al modo simple, que también funciona.
 
 ## Cómo se usa
 
@@ -118,7 +118,7 @@ propia página trae —su HTML, su CSS, su código— y las peticiones que hace.
 Ninguna de ellas toca archivos, documentos ni contraseñas de tu equipo. Eso el
 navegador no lo permite, y no es algo que haya que configurar.
 
-Lo que sí se puede endurecer, y está hecho en `netlify.toml`:
+Lo que sí se puede endurecer, y está hecho en `vercel.json`:
 
 - **Content-Security-Policy**: lista blanca de sitios desde los que se puede
   cargar algo. Si alguien lograra colar código —por ejemplo en el título de un
@@ -226,7 +226,7 @@ juego con el jardín: carátula, nombre y artista, barra de progreso arrastrable
 anterior, play/pausa, siguiente, volver al principio y la lista entera para
 elegir. En la pastilla de arriba se lee lo que suena sin abrir nada.
 
-La pieza que lo hace posible es `netlify/functions/playlist.js`. El navegador
+La pieza que lo hace posible es `api/playlist.js`. El navegador
 no puede leer las canciones de una playlist —CORS bloquea la página del embed
 y la API oficial pide credenciales que no pueden vivir en el frontend—, pero un
 servidor sí. Esa función pide la misma página pública del embed, saca título,
@@ -256,9 +256,9 @@ Lo que impone Spotify y no se puede evitar:
 - Los navegadores no dejan sonar audio sin un gesto. Arranca con el toque del
   ramo; en iOS puede hacer falta darle al play del panel.
 
-Para probar la función en local hace falta el entorno de Netlify
-(`npx netlify-cli dev`); con un servidor estático corriente se ve el modo
-simple, que también funciona.
+Para probar la función en local hace falta un servidor que sepa ejecutarla
+(`npx vercel dev`); con un servidor sólo estático se ve el modo simple, que
+también funciona.
 
 ## Modo demo
 

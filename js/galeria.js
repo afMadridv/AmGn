@@ -169,13 +169,16 @@
     });
     if (!seguro) return;
     try {
-      await Datos.arte.borrar(abierta.id);
+      // La lista sólo se toca si el borrado se confirmó de verdad: si no, el
+      // dibujo desaparecía de la pantalla y volvía al recargar.
+      await Datos.arte.borrar(abierta.id, abierta.imagen);
       obras = obras.filter(o => o.id !== abierta.id);
       pintarRejilla();
       J().cerrarModal(el.modalObra);
       J().aviso('Dibujo retirado');
     } catch (err) {
       J().aviso(err.message || 'No pude quitarlo');
+      console.error(err);
     }
   });
 
