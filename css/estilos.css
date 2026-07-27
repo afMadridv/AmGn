@@ -144,8 +144,17 @@ button { font-family: inherit; color: inherit; }
 /* ==========================================================================
    2. JARDÍN
    ========================================================================== */
+/* El jardín se dibuja como si el navegador estuviera al 100 % y luego se
+   encoge por el zoom que haya: las dos operaciones se anulan y la escena se
+   ve siempre con las mismas proporciones. `--zoom` lo pone js/app.js.
+   `inset` no vale aquí, porque el tamaño se calcula a mano. */
 .jardin {
-  position: fixed; inset: 0;
+  position: fixed;
+  top: 0; left: 0;
+  width:  calc(100vw  * var(--zoom, 1));
+  height: calc(100dvh * var(--zoom, 1));
+  transform: scale(calc(1 / var(--zoom, 1)));
+  transform-origin: top left;
   overflow: hidden;
   opacity: 0;
   transition: opacity 1s ease .1s;

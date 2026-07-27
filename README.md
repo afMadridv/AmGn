@@ -140,6 +140,28 @@ Lo único realmente expuesto es la clave pública de Supabase, que está en este
 repo por diseño. **Si el repo es público, ponlo en privado** — es el paso que
 más cierra.
 
+## El zoom
+
+El jardín es una escena, no un texto: al acercar o alejar debe verse igual,
+sólo más grande o más pequeño. Pero sus medidas mezclan píxeles con
+porcentajes de pantalla —una flor es `clamp(32px, 9vw, 46px)`— y el zoom mueve
+las dos cosas en sentidos contrarios: alejando, la ventana pasa a medir miles
+de píxeles CSS y la flor se queda clavada en su tope de 46, hecha una mota;
+acercando pasa lo contrario y los botones se comen la pantalla.
+
+`js/app.js` mide cuánto ha zoomeado el navegador —por el cambio de
+`devicePixelRatio`— y lo deja en `--zoom`. El CSS agranda el jardín por ese
+número y lo reduce por el mismo con un `scale`: las dos operaciones se anulan
+y la escena conserva sus proporciones exactas. Medido: al 50 % y al 200 % una
+flor ocupa el mismo porcentaje del ancho que al 100 %.
+
+Los modales y sus textos quedan fuera del jardín a propósito: ahí el zoom debe
+seguir funcionando, que para eso está.
+
+La referencia se toma al cargar la página. Si la abres ya zoomeada, esa vista
+pasa a ser la de referencia — no se rompe nada, pero el ajuste cuenta desde
+ahí.
+
 ## Volver
 
 Todo lo que se abre dentro del jardín —notas, libro, galería, un dibujo, el

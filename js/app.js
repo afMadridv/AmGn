@@ -75,6 +75,32 @@
   let rincon = 0;
   let florAbierta = null;
 
+  /* ------------------------------------------------------------- el zoom --
+     El jardín es una escena, no un texto: al acercar o alejar debería verse
+     igual, sólo más grande o más pequeño. Pero sus medidas mezclan píxeles
+     con porcentajes de pantalla —una flor es `clamp(32px, 9vw, 46px)`—, y el
+     zoom mueve las dos cosas en sentidos contrarios: alejando, la ventana
+     mide miles de píxeles CSS y la flor se queda pegada a su tope de 46;
+     acercando pasa al revés y los botones se comen la pantalla.
+
+     Se mide cuánto ha zoomeado el navegador y se le pasa a la hoja de estilos
+     en `--zoom`. Allí el jardín se agranda por ese número y se reduce por el
+     mismo con un `scale`, de modo que las dos operaciones se anulan y la
+     escena conserva sus proporciones. Los modales y los textos quedan fuera:
+     ahí el zoom debe seguir funcionando como siempre.                       */
+  const zoomBase = window.devicePixelRatio || 1;
+
+  function medirZoom() {
+    const z = (window.devicePixelRatio || 1) / zoomBase;
+    // Fuera de este margen ya no es zoom, es otra pantalla: mejor no tocar.
+    const seguro = Math.min(Math.max(z, 0.25), 5);
+    document.documentElement.style.setProperty('--zoom', seguro.toFixed(4));
+  }
+
+  medirZoom();
+  // No hay evento de zoom; se detecta por el cambio de resolución.
+  addEventListener('resize', medirZoom);
+
   /* ---------------------------------------------------------------- utils */
   const aviso = (txt) => {
     el.brindis.textContent = txt;
