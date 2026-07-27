@@ -83,6 +83,12 @@
     aviso._t = setTimeout(() => el.brindis.classList.remove('visible'), 2600);
   };
 
+  // Todo lo que venga de fuera —lo que ella escribe, lo que manda Spotify—
+  // pasa por aquí antes de entrar en un innerHTML. Un `<` de más y el
+  // navegador se creería que empieza una etiqueta.
+  const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  const escapar = t => String(t ?? '').replace(/[&<>"']/g, c => ESCAPES[c]);
+
   const fechaLarga = iso => new Date(iso).toLocaleDateString('es-CO', {
     day: 'numeric', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
@@ -100,9 +106,53 @@
   }
   function cerrar(modal) {
     modal.classList.remove('abierto');
-    document.body.classList.remove('sin-scroll');
-    setTimeout(() => { modal.hidden = true; }, 240);
+    setTimeout(() => {
+      modal.hidden = true;
+      // El scroll sólo se devuelve si no queda ningún otro modal abierto: si
+      // no, cerrar el de encima destrabaría la página con el de abajo puesto.
+      if (!document.querySelector('.modal.abierto')) {
+        document.body.classList.remove('sin-scroll');
+      }
+    }, 240);
   }
+
+  /* --------------------------------------------------- confirmar borrados
+     Un `confirm()` del navegador se salta el diseño y en el móvil sale como
+     una alerta del sistema. Este pregunta dentro del jardín y deja claro que
+     no hay marcha atrás.                                                    */
+  const conf = {
+    modal:  $('#modalConfirmar'),
+    titulo: $('#confirmarTitulo'),
+    texto:  $('#confirmarTexto'),
+    si:     $('#btnConfirmarSi'),
+    no:     $('#btnConfirmarNo'),
+    fondo:  $('#confirmarFondo')
+  };
+  let responder = null;
+
+  function confirmar({ titulo = '¿Seguro?', texto = '', aceptar = 'Sí, borrar' } = {}) {
+    conf.titulo.textContent = titulo;
+    conf.texto.textContent  = texto;
+    conf.si.textContent     = aceptar;
+    abrir(conf.modal);
+    setTimeout(() => conf.no.focus(), 240);
+    return new Promise(resolve => { responder = resolve; });
+  }
+
+  function contestar(valor) {
+    if (!responder) return;
+    const r = responder;
+    responder = null;
+    cerrar(conf.modal);
+    r(valor);
+  }
+
+  conf.si.addEventListener('click',   () => contestar(true));
+  conf.no.addEventListener('click',   () => contestar(false));
+  conf.fondo.addEventListener('click', () => contestar(false));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && responder) contestar(false);
+  });
 
   document.addEventListener('click', e => {
     // `closest` y no `matches`: al tocar la flecha, el clic llega en el <svg>
@@ -571,7 +621,7 @@
           FloresSVG.existe(f.especie) ? FloresSVG.img(f.especie, 40, true, f.hue) : f.especie}</span>
         <span class="libro-txt">
           <time>${fechaLarga(f.fecha)}</time>
-          <em>${f.texto.slice(0, 70)}${f.texto.length > 70 ? '…' : ''}</em>
+          <em>${escapar(f.texto.slice(0, 70))}${f.texto.length > 70 ? '…' : ''}</em>
         </span>
         ${f.foto ? '<span class="libro-marca" title="Lleva foto">▣</span>' : ''}
         ${f.corazon ? '<span class="libro-marca libro-marca--corazon" title="Con corazón">♥</span>' : ''}`;
@@ -603,10 +653,15 @@
       li.innerHTML = `<span class="mini">${
           FloresSVG.existe(f.especie) ? FloresSVG.img(f.especie, 26, true, f.hue) : f.especie}</span>
         <span class="mini-txt">${f.foto ? '<span class="mini-foto" title="Lleva foto">▣</span> ' : ''}${
-          f.texto.slice(0, 36)}${f.texto.length > 36 ? '…' : ''}</span>
+          escapar(f.texto.slice(0, 36))}${f.texto.length > 36 ? '…' : ''}</span>
         <button type="button" class="mini-borrar" aria-label="Borrar">&times;</button>`;
       li.querySelector('.mini-borrar').addEventListener('click', async () => {
-        if (!confirm('¿Borrar esta flor y su nota? No se puede deshacer.')) return;
+        const seguro = await confirmar({
+          titulo: '¿Arrancar esta flor?',
+          texto: 'Se va la flor y con ella la nota que escribiste.',
+          aceptar: 'Sí, arrancarla'
+        });
+        if (!seguro) return;
         try {
           await Datos.borrar(f.id);
           flores = flores.filter(x => x.id !== f.id);
@@ -663,7 +718,7 @@
 
   // Lo que la galería necesita del jardín: sus modales y sus avisos, para que
   // todo se abra y se anuncie igual.
-  window.Jardin = { abrirModal: abrir, cerrarModal: cerrar, aviso, fechaLarga };
+  window.Jardin = { abrirModal: abrir, cerrarModal: cerrar, aviso, fechaLarga, confirmar, escapar };
 
   /* ------------------------------------------------------------- arranque */
   (async function inicio() {

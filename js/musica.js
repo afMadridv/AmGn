@@ -76,6 +76,9 @@
   const conLista = () => canciones.length > 0;
 
   /* ------------------------------------------------------------- utils -- */
+  // Los títulos vienen de Spotify: se escapan antes de entrar en un innerHTML.
+  const esc = t => window.Jardin.escapar(t);
+
   const reloj = ms => {
     if (!ms || ms < 0) ms = 0;
     const s = Math.floor(ms / 1000);
@@ -179,8 +182,8 @@
       li.innerHTML = `<button type="button" class="cancion-item" data-i="${i}">
           <span class="cancion-num">${i + 1}</span>
           <span class="cancion-info">
-            <span class="cancion-t">${c.titulo}</span>
-            <span class="cancion-a">${c.artista}</span>
+            <span class="cancion-t">${esc(c.titulo)}</span>
+            <span class="cancion-a">${esc(c.artista)}</span>
           </span>
         </button>`;
       li.querySelector('button').addEventListener('click', () => ir(i));

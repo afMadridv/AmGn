@@ -94,9 +94,8 @@ uno. El botón está en el jardín, bajo el del libro.
   tiene; pedirle que inicie sesión para dibujar en su propia galería sobra.
 - **Quitar un dibujo pide tu sesión** —la del portal del jardín—. Es la única
   puerta cerrada, para que nadie pueda vaciarle la galería de un golpe.
-- **Ella elige el marco** de cada dibujo, igual que elige la flor y el color de
-  una nota: polaroid, o pegado a la pared con cinta en las cuatro esquinas. El
-  marco se ve tanto en la miniatura como en el cuadro grande.
+- Cada dibujo va en **marco polaroid**, igual en la miniatura y en el cuadro
+  grande.
 - **El corazón funciona como el de las notas, pero al revés**: allí ella se lo
   da a lo que tú escribes, aquí tú se lo das a lo que ella dibuja. Se da una
   vez y no se quita; en la rejilla queda un ♥ junto al título.
@@ -110,6 +109,36 @@ Los dibujos se reescalan a 2000 px (más que las fotos de las notas, que son
 > el repo es público, cualquiera que lo encuentre puede colgar un dibujo en la
 > galería —no borrar, no leer nada nuevo—. Ponlo en privado
 > (Settings → General → Change visibility) y ese hueco se cierra.
+
+## Seguridad
+
+Conviene decirlo claro: **una página web no puede leer nada del ordenador de
+quien la visita**, ni con "Inspeccionar elemento". Ahí sólo se ve lo que la
+propia página trae —su HTML, su CSS, su código— y las peticiones que hace.
+Ninguna de ellas toca archivos, documentos ni contraseñas de tu equipo. Eso el
+navegador no lo permite, y no es algo que haya que configurar.
+
+Lo que sí se puede endurecer, y está hecho en `netlify.toml`:
+
+- **Content-Security-Policy**: lista blanca de sitios desde los que se puede
+  cargar algo. Si alguien lograra colar código —por ejemplo en el título de un
+  dibujo—, el navegador no lo ejecutaría, y tampoco podría enviar nada a un
+  servidor que no esté en la lista.
+- **Permissions-Policy**: cámara, micrófono, ubicación, pagos y sensores
+  apagados. La página no puede ni pedirlos.
+- **frame-ancestors / X-Frame-Options**: nadie puede meter el jardín dentro de
+  otra web para hacerlo pasar por suyo.
+- Todo el texto que viene de fuera —lo que se escribe en un dibujo, lo que
+  manda Spotify— se escapa antes de pintarlo, para que un `<` no se convierta
+  en una etiqueta.
+
+Lleva `'unsafe-eval'` porque la API de Spotify usa `eval()` y sin él la música
+no arranca. Sólo permite que los scripts ya autorizados lo usen; meter uno
+nuevo sigue estando cerrado, que es lo que importa.
+
+Lo único realmente expuesto es la clave pública de Supabase, que está en este
+repo por diseño. **Si el repo es público, ponlo en privado** — es el paso que
+más cierra.
 
 ## Volver
 

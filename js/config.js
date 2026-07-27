@@ -46,14 +46,6 @@ window.CONFIG = {
     { nombre: 'frambuesa', hue: 345 }
   ],
 
-  // Marcos de la galería. Ella elige uno al colgar cada dibujo; cómo se ve
-  // cada marco está en css/estilos.css, buscando `[data-marco]`. El primero
-  // es el que viene puesto.
-  MARCOS: [
-    { clave: 'polaroid', nombre: 'Polaroid'  },
-    { clave: 'cinta',    nombre: 'Con cinta' }
-  ],
-
   // Fotos en las notas. Necesita el bucket de Supabase Storage creado con
   // sql/instalar.sql. Si no existe, la app sigue funcionando sin fotos.
   BUCKET_FOTOS: 'notas',

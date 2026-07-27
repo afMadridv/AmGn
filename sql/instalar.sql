@@ -126,7 +126,6 @@ create table if not exists public.obras (
   titulo      text        not null check (char_length(titulo) between 1 and 120),
   descripcion text        check (char_length(descripcion) <= 2000),
   imagen      text        not null,
-  marco       text        not null default 'polaroid', -- el marco que ella elige
   comentario  text        check (char_length(comentario) <= 600),  -- lo que le dice su fan
   corazon     boolean     not null default false,
   created_at  timestamptz not null default now()
@@ -149,14 +148,11 @@ begin
   end if;
 end $$;
 
-alter table public.obras add column if not exists marco   text    not null default 'polaroid';
 alter table public.obras add column if not exists corazon boolean not null default false;
-alter table public.obras alter column marco set default 'polaroid';
 
--- Los marcos quedaron en dos: polaroid y cinta. Lo que se colgara con alguno
--- de los que ya no están se pasa al más parecido.
-update public.obras set marco = 'cinta'    where marco = 'washi';
-update public.obras set marco = 'polaroid' where marco not in ('polaroid', 'cinta');
+-- Todos los dibujos van en marco polaroid, así que ya no hace falta guardar
+-- cuál. La columna sólo tenía el nombre del marco: nada que perder.
+alter table public.obras drop column if exists marco;
 
 -- El corazón de sus dibujos, igual que el de las notas: se da una vez y no se
 -- puede quitar. Va por función para no tener que abrirle un UPDATE a nadie.

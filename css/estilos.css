@@ -1144,20 +1144,6 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 }
 .obra-tarjeta:hover { transform: translateY(-4px); }
 
-.obra-tarjeta-marco {
-  display: block;
-  box-shadow: 0 4px 14px rgba(70,46,40,.16);
-  transition: box-shadow .3s ease;
-}
-.obra-tarjeta:hover .obra-tarjeta-marco { box-shadow: 0 10px 26px rgba(70,46,40,.24); }
-.obra-tarjeta-marco img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  background: #f1e8dc;
-}
-
 .obra-tarjeta-pie { display: flex; align-items: baseline; gap: 5px; padding: 0 3px; }
 .obra-tarjeta-titulo {
   flex: 1; min-width: 0;
@@ -1168,65 +1154,26 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 .obra-tarjeta-marca { color: var(--tinta-suave); font-size: .8rem; }
 .obra-tarjeta-marca--corazon { color: var(--acento); font-size: .88rem; }
 
-/* ============================================================== MARCOS ===
-   El marco lo elige ella al colgar el dibujo. Cada uno se define una sola vez
-   con `[data-marco]` y sirve igual para la miniatura, para el cuadro grande y
-   para las muestras del selector: así no hay tres versiones del mismo marco
-   que se vayan separando con el tiempo.
+/* ====================================================== MARCO POLAROID ===
+   Margen fino arriba y a los lados, ancho abajo: el hueco de escribir debajo
+   de la foto. Los dos sitios donde aparece un dibujo —la miniatura y el
+   cuadro grande— comparten esta definición, para que no se separen.
    ======================================================================== */
-[data-marco] { position: relative; }
-[data-marco] > img, [data-marco] > i { display: block; width: 100%; }
-
-/* Polaroid: margen fino arriba y a los lados, ancho abajo — el hueco de
-   escribir debajo de la foto. */
-[data-marco="polaroid"] {
+.obra-tarjeta-marco, .obra-marco {
+  display: block;
+  position: relative;
   padding: 6% 6% 20%;
   border-radius: 2px;
   background: #fffefb;
-  box-shadow: 0 2px 6px rgba(0,0,0,.12);
 }
+.obra-tarjeta-marco > img, .obra-marco > img { display: block; width: 100%; }
 
-/* Con cinta: sin marco, pegado por las cuatro esquinas.
-   Las cuatro tiras son cuatro degradados de fondo y no cuatro elementos,
-   porque un elemento sólo tiene dos pseudos (::before y ::after) y harían
-   falta cuatro. Cada degradado pinta una banda diagonal dentro de un cuadro
-   de --esquina de lado, colocado en su esquina.
-
-   La banda va perpendicular al eje del degradado: con 135deg (eje hacia
-   abajo-derecha) la tira sube hacia la derecha ↗, que es como cae la cinta
-   en las esquinas superior-izquierda e inferior-derecha; con 45deg baja ↘,
-   que es la de las otras dos. */
-[data-marco="cinta"] { padding: 0; }
-/* Las cintas van en una capa encima de la imagen. Se pintan en `::after` y no
-   en el fondo del propio marco porque el fondo queda por DEBAJO de la imagen;
-   sacarla de ahí pediría un z-index negativo, y eso la escondería también
-   detrás de la tarjeta. */
-[data-marco="cinta"]::after {
-  --esquina: 32%;
-  --cinta: rgba(242, 176, 199, .72);
-  --ancho: 7%;               /* mitad del grosor de la tira */
-  content: '';
-  position: absolute;
-  /* Se sale un poco del dibujo: la cinta pega el papel a la pared, no acaba
-     justo en el borde. */
-  inset: -6px;
-  pointer-events: none;
-  background-repeat: no-repeat;
-  background-size: var(--esquina) var(--esquina);
-  background-position: top left, top right, bottom left, bottom right;
-  background-image:
-    linear-gradient(135deg, transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho))),
-    linear-gradient(45deg,  transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho))),
-    linear-gradient(45deg,  transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho))),
-    linear-gradient(135deg, transparent calc(50% - var(--ancho)), var(--cinta) calc(50% - var(--ancho)) calc(50% + var(--ancho)), transparent calc(50% + var(--ancho)));
+.obra-tarjeta-marco {
+  box-shadow: 0 4px 14px rgba(70,46,40,.16);
+  transition: box-shadow .3s ease;
 }
-
-/* Las muestras del selector: el mismo marco, en pequeño. */
-.selector--marcos { gap: 10px; }
-.opcion--marco { width: 52px; height: 52px; padding: 0; }
-.muestra-marco { display: block; width: 40px; height: 40px; }
-.muestra-marco > i { height: 100%; background: linear-gradient(135deg, #f7c5d8, #9fd6c2); }
-.muestra-marco[data-marco="polaroid"] { padding: 5% 5% 18%; }
+.obra-tarjeta:hover .obra-tarjeta-marco { box-shadow: 0 10px 26px rgba(70,46,40,.24); }
+.obra-tarjeta-marco > img { aspect-ratio: 1; object-fit: cover; background: #f1e8dc; }
 
 .galeria-vacia {
   margin: 6px 0 0;
@@ -1261,10 +1208,7 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 /* ------------------------------------------------------- ver un dibujo -- */
 .tarjeta--obra { width: min(94vw, 520px); text-align: center; }
 
-.obra-marco {
-  position: relative;
-  box-shadow: 0 8px 26px rgba(70,46,40,.22);
-}
+.obra-marco { box-shadow: 0 8px 26px rgba(70,46,40,.22); }
 .obra-imagen {
   display: block;
   width: 100%;
@@ -1644,6 +1588,50 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 .mini-foto { color: var(--acento); font-size: .78rem; }
 .mini-txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mini-borrar { border: 0; background: none; font-size: 1.2rem; color: #b3261e; cursor: pointer; }
+
+/* ------------------------------------------------- confirmar un borrado -
+   Va por encima de todo lo demás: se abre desde otro modal.                */
+.modal--confirmar { z-index: 960; }
+.tarjeta--confirmar {
+  width: min(90vw, 350px);
+  padding: 26px 24px 22px;
+  text-align: center;
+}
+.confirmar-icono {
+  display: grid; place-items: center;
+  width: 52px; height: 52px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: #fdecec;
+  color: #b3261e;
+}
+.confirmar-titulo {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+.confirmar-texto {
+  margin: 0 0 10px;
+  font-size: .92rem;
+  line-height: 1.5;
+  color: var(--tinta-suave);
+}
+.confirmar-aviso {
+  margin: 0 0 20px;
+  font-size: .78rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #b3261e;
+}
+.tarjeta--confirmar .acciones .btn { flex: 1; }
+
+.btn--peligro {
+  background: #c0392f;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(192,57,47,.32);
+}
+.btn--peligro:hover { background: #a32f26; }
 
 /* ------------------------------------------------------------- brindis -- */
 .brindis {

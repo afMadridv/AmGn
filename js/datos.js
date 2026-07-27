@@ -192,7 +192,7 @@
         return data || [];
       },
 
-      async publicar({ titulo, descripcion, imagen, marco }) {
+      async publicar({ titulo, descripcion, imagen }) {
         const nombre = Date.now().toString(36) + '-' +
                        Math.random().toString(36).slice(2, 8) + '.jpg';
 
@@ -207,7 +207,7 @@
 
         const { data: pub } = sb.storage.from('galeria').getPublicUrl(nombre);
         const { data, error } = await sb.from(OBRAS)
-          .insert({ titulo, descripcion, marco, imagen: pub.publicUrl })
+          .insert({ titulo, descripcion, imagen: pub.publicUrl })
           .select().single();
         if (error) throw error;
         return data;
@@ -305,7 +305,7 @@
 
       async listar() { return this._leer(); },
 
-      async publicar({ titulo, descripcion, imagen, marco }) {
+      async publicar({ titulo, descripcion, imagen }) {
         const url = await new Promise((ok, mal) => {
           const fr = new FileReader();
           fr.onload = () => ok(fr.result);
@@ -314,7 +314,7 @@
         });
         const obra = {
           id: 'o_' + Date.now().toString(36),
-          titulo, descripcion, marco, imagen: url,
+          titulo, descripcion, imagen: url,
           comentario: null, corazon: false,
           created_at: new Date().toISOString()
         };

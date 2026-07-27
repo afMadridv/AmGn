@@ -272,11 +272,6 @@
                   placeholder="Lo que sentías, lo que estabas escuchando, lo que sea…"></textarea>
       </label>
 
-      <fieldset class="campo">
-        <span>Marco</span>
-        <div class="selector selector--marcos" id="selectorMarco"></div>
-      </fieldset>
-
       <p class="error" id="colgarError" hidden></p>
 
       <div class="acciones">
@@ -299,7 +294,7 @@
   <article class="tarjeta tarjeta--obra">
     <button class="volver" data-cerrar aria-label="Volver al jardín"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
 
-    <div class="obra-marco" id="obraMarco" data-marco="blanco">
+    <div class="obra-marco">
       <img class="obra-imagen" id="obraImagen" alt="" decoding="async">
     </div>
 
@@ -400,6 +395,28 @@
       <ul class="lista-flores" id="listaFlores"></ul>
     </details>
   </form>
+</div>
+
+<!-- ============ MODAL: CONFIRMAR UN BORRADO ============ -->
+<div class="modal modal--confirmar" id="modalConfirmar" hidden
+     role="alertdialog" aria-modal="true" aria-labelledby="confirmarTitulo">
+  <div class="modal-fondo" id="confirmarFondo"></div>
+  <article class="tarjeta tarjeta--confirmar">
+    <div class="confirmar-icono" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
+           stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+        <path d="M12 8v5"/><circle cx="12" cy="16.6" r=".6" fill="currentColor"/>
+        <path d="M10.3 3.8 2.6 17.4A1.9 1.9 0 0 0 4.3 20.3h15.4a1.9 1.9 0 0 0 1.7-2.9L13.7 3.8a1.9 1.9 0 0 0-3.4 0z"/>
+      </svg>
+    </div>
+    <h2 class="confirmar-titulo" id="confirmarTitulo">¿Seguro?</h2>
+    <p class="confirmar-texto" id="confirmarTexto"></p>
+    <p class="confirmar-aviso">Esto no tiene vuelta atrás.</p>
+    <div class="acciones">
+      <button class="btn btn--fantasma" type="button" id="btnConfirmarNo">Mejor no</button>
+      <button class="btn btn--peligro" type="button" id="btnConfirmarSi">Sí, borrar</button>
+    </div>
+  </article>
 </div>
 
 <div class="brindis" id="brindis" role="status" aria-live="polite"></div>

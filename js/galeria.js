@@ -34,7 +34,6 @@
     obraTexto:   $('#obraTexto'),
     obraTitulo:  $('#obraTitulo'),
     obraDesc:    $('#obraDescripcion'),
-    selMarco:    $('#selectorMarco'),
     colgarError: $('#colgarError'),
     btnColgar:   $('#btnColgar'),
     btnCancelarObra: $('#btnCancelarObra'),
@@ -42,7 +41,6 @@
     btnNueva:    $('#btnNuevaObra'),
 
     modalObra:   $('#modalObra'),
-    obraMarco:   $('#obraMarco'),
     obraImagen:  $('#obraImagen'),
     obraTituloVer: $('#obraTituloVer'),
     obraFecha:   $('#obraFecha'),
@@ -64,32 +62,8 @@
   let esFan   = false;     // él, con la sesión del jardín abierta
   let abierta = null;      // la obra que se está mirando
   let dibujo  = null;      // el archivo ya reducido, listo para subir
-  let marco   = CFG.MARCOS[0].clave;
 
   el.titulo.textContent = 'La galería de ' + CFG.PARA;
-
-  // Un dibujo colgado con un marco que ya no existe se enseña con el primero,
-  // en vez de quedarse sin ninguno.
-  const marcoDe = o =>
-    CFG.MARCOS.some(m => m.clave === o.marco) ? o.marco : CFG.MARCOS[0].clave;
-
-  /* ------------------------------------------------------ elegir el marco */
-  CFG.MARCOS.forEach((m, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'opcion opcion--marco' + (i === 0 ? ' activa' : '');
-    b.dataset.marco = m.clave;
-    b.title = m.nombre;
-    b.setAttribute('aria-label', 'Marco ' + m.nombre);
-    // Dentro del marco, un trocito de color que hace de cuadro.
-    b.innerHTML = '<span class="muestra-marco" data-marco="' + m.clave + '"><i></i></span>';
-    b.addEventListener('click', () => {
-      marco = m.clave;
-      el.selMarco.querySelectorAll('.opcion').forEach(o => o.classList.remove('activa'));
-      b.classList.add('activa');
-    });
-    el.selMarco.appendChild(b);
-  });
 
   /* ---------------------------------------------------------- la rejilla */
   function pintarRejilla() {
@@ -101,12 +75,12 @@
       b.type = 'button';
       b.className = 'obra-tarjeta';
       b.innerHTML = `
-        <span class="obra-tarjeta-marco" data-marco="${marcoDe(o)}">
-          <img src="${o.imagen}" alt="${(o.titulo || '').replace(/"/g, '&quot;')}"
+        <span class="obra-tarjeta-marco">
+          <img src="${J().escapar(o.imagen)}" alt="${J().escapar(o.titulo)}"
                loading="lazy" decoding="async">
         </span>
         <span class="obra-tarjeta-pie">
-          <span class="obra-tarjeta-titulo">${o.titulo || ''}</span>
+          <span class="obra-tarjeta-titulo">${J().escapar(o.titulo)}</span>
           ${o.corazon ? '<span class="obra-tarjeta-marca obra-tarjeta-marca--corazon" title="Con el corazón de tu fan">♥</span>' : ''}
           ${o.comentario ? '<span class="obra-tarjeta-marca" title="Con nota de tu fan">✎</span>' : ''}
         </span>`;
@@ -121,7 +95,6 @@
     if (!o) return;
     abierta = o;
 
-    el.obraMarco.dataset.marco = marcoDe(o);
     el.obraImagen.src = o.imagen;
     el.obraImagen.alt = o.titulo || 'Dibujo';
     el.obraTituloVer.textContent = o.titulo || '';
@@ -189,7 +162,12 @@
 
   el.btnBorrarObra.addEventListener('click', async () => {
     if (!abierta) return;
-    if (!confirm('¿Quitar este dibujo de la galería? No se puede deshacer.')) return;
+    const seguro = await J().confirmar({
+      titulo: '¿Descolgar este dibujo?',
+      texto: `«${abierta.titulo}» sale de la galería, y con él lo que escribiste debajo.`,
+      aceptar: 'Sí, descolgarlo'
+    });
+    if (!seguro) return;
     try {
       await Datos.arte.borrar(abierta.id);
       obras = obras.filter(o => o.id !== abierta.id);
@@ -246,7 +224,6 @@
       const obra = await Datos.arte.publicar({
         titulo: el.obraTitulo.value.trim(),
         descripcion: el.obraDesc.value.trim(),
-        marco,
         imagen: dibujo
       });
       obras.unshift(obra);
