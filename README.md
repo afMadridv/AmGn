@@ -103,7 +103,7 @@ uno. El botón está en el jardín, bajo el del libro.
   Sale firmado bajo el cuadro.
 
 Los dibujos se reescalan a 2000 px (más que las fotos de las notas, que son
-1600) antes de subirse.
+1600) antes de subirse. Ver **Formatos de foto** más abajo.
 
 > **Lo que hay que saber:** la clave pública de Supabase vive en este repo. Si
 > el repo es público, cualquiera que lo encuentre puede colgar un dibujo en la
@@ -139,6 +139,31 @@ nuevo sigue estando cerrado, que es lo que importa.
 Lo único realmente expuesto es la clave pública de Supabase, que está en este
 repo por diseño. **Si el repo es público, ponlo en privado** — es el paso que
 más cierra.
+
+## Formatos de foto
+
+Vale cualquier imagen que el navegador sepa abrir: JPG, PNG, WebP, GIF, AVIF,
+BMP, SVG… Tanto en las notas como en la galería. Los buckets aceptan `image/*`.
+
+Antes de subirla se procura no estropearla:
+
+- **Un GIF animado se sube tal cual** (si no pasa de 4 MB). Pasarlo por el
+  lienzo lo dejaría congelado en el primer fotograma.
+- **Lo que puede llevar transparencia** —PNG, WebP, AVIF— sale en **WebP**, que
+  la conserva. Antes todo se forzaba a JPEG y el fondo transparente se volvía
+  negro.
+- **Lo que ya viene pequeño y ligero** (dentro del límite de lado y bajo 1,5 MB)
+  se sube sin tocar: recomprimir lo ya comprimido sólo le quita calidad.
+- El resto se reescala y sale en JPEG.
+
+Lo que **ningún navegador de escritorio sabe abrir** es HEIC/HEIF (el formato
+por defecto del iPhone), TIFF y los RAW de cámara. Con esos sale un aviso que
+nombra el formato en vez de un error a secas.
+
+En el iPhone no suele ser problema: al elegir una foto con `accept="image/*"`,
+iOS la convierte a JPEG por su cuenta. Por eso ese `accept` se deja tal cual —
+si se le añadieran extensiones como `.heic`, iOS dejaría de convertir y
+entregaría el archivo en crudo, que es justo lo que no se puede leer.
 
 ## El zoom
 

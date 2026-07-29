@@ -46,25 +46,69 @@
   /* ------------------------------------------------------ reducir fotos --
      Las fotos del móvil pesan varios megas. Se reescalan y recomprimen en el
      propio teléfono antes de subirlas: sube rápido y se abren sin gastar
-     datos. Lo usan tanto las notas como la galería.                        */
-  function reducirImagen(archivo, maxLado = 1600, calidad = 0.82) {
+     datos. Lo usan tanto las notas como la galería.
+
+     Se admite cualquier formato que el navegador sepa abrir, y se procura
+     devolverlo sin estropearlo: un GIF animado se sube tal cual —pasarlo por
+     el lienzo lo dejaría congelado—, y lo que pueda tener transparencia sale
+     en WebP, que la conserva, en vez de JPEG, que la rellenaría de negro.  */
+
+  // Formatos que pueden traer transparencia.
+  const CON_ALFA = /^image\/(png|webp|gif|avif|svg)/;
+  // Formatos que casi ningún navegador sabe decodificar.
+  const CRUDOS = /\.(heic|heif|tiff?|cr2|cr3|nef|arw|dng|raf|orf|rw2)$/i;
+
+  const aBlob = (lienzo, tipo, calidad) =>
+    new Promise(ok => lienzo.toBlob(b => ok(b), tipo, calidad));
+
+  function abrirImagen(archivo) {
     return new Promise((ok, mal) => {
       const url = URL.createObjectURL(archivo);
       const im = new Image();
-      im.onload = () => {
+      im.onload  = () => { URL.revokeObjectURL(url); ok(im); };
+      im.onerror = () => {
         URL.revokeObjectURL(url);
-        const escala = Math.min(1, maxLado / Math.max(im.width, im.height));
-        const c = document.createElement('canvas');
-        c.width  = Math.round(im.width  * escala);
-        c.height = Math.round(im.height * escala);
-        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        c.toBlob(b => b ? ok(b) : mal(new Error('No pude procesar la imagen')),
-                 'image/jpeg', calidad);
+        // Decir qué formato es ayuda más que un "no se puede leer" a secas.
+        const ext = (archivo.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+        mal(new Error(CRUDOS.test(archivo.name)
+          ? `Este navegador no sabe abrir archivos ${ext}. Guárdala como JPG o PNG y vuelve a intentarlo.`
+          : 'Esa imagen no se puede leer'));
       };
-      im.onerror = () => { URL.revokeObjectURL(url); mal(new Error('Esa imagen no se puede leer')); };
       im.src = url;
     });
   }
+
+  async function reducirImagen(archivo, maxLado = 1600, calidad = 0.82) {
+    // El lienzo se queda con el primer fotograma: un GIF animado se sube
+    // entero mientras no sea enorme.
+    if (archivo.type === 'image/gif' && archivo.size <= 4 * 1024 * 1024) return archivo;
+
+    const im = await abrirImagen(archivo);
+    const escala = Math.min(1, maxLado / Math.max(im.width, im.height));
+
+    // Si ya viene pequeña y ligera, se deja como está: recomprimir lo que ya
+    // está comprimido sólo le quita calidad.
+    if (escala === 1 && archivo.size <= 1.5 * 1024 * 1024 &&
+        /^image\/(jpeg|png|webp)$/.test(archivo.type)) {
+      return archivo;
+    }
+
+    const c = document.createElement('canvas');
+    c.width  = Math.max(1, Math.round(im.width  * escala));
+    c.height = Math.max(1, Math.round(im.height * escala));
+    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+
+    const tipo = CON_ALFA.test(archivo.type) ? 'image/webp' : 'image/jpeg';
+    // Si el navegador no sabe escribir WebP, `toBlob` devuelve el tipo por
+    // defecto (PNG) en vez de fallar; se comprueba y se acepta.
+    const blob = await aBlob(c, tipo, calidad) || await aBlob(c, 'image/png');
+    if (!blob) throw new Error('No pude procesar la imagen');
+    return blob;
+  }
+
+  // De `image/jpeg` a `jpg`, de `image/svg+xml` a `svg`.
+  const extensionDe = tipo =>
+    (String(tipo).split('/')[1] || 'jpg').split('+')[0].replace('jpeg', 'jpg');
 
   /* ---------- normalización: la fila de la BD -> objeto de la app -------- */
   function aFlor(fila) {
@@ -118,11 +162,12 @@
       return aFlor(data);
     },
 
-    // Sube la imagen ya reducida y devuelve su URL pública.
+    // Sube la imagen ya reducida y devuelve su URL pública. El nombre y el
+    // tipo salen del archivo: puede llegar en JPEG, WebP, PNG o GIF.
     async subirFoto(archivo) {
-      const ext = (archivo.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
       const nombre = Date.now().toString(36) + '-' +
-                     Math.random().toString(36).slice(2, 8) + '.' + ext;
+                     Math.random().toString(36).slice(2, 8) + '.' +
+                     extensionDe(archivo.type);
 
       const { error } = await sb.storage
         .from(CFG.BUCKET_FOTOS)
@@ -201,10 +246,11 @@
 
       async publicar({ titulo, descripcion, imagen }) {
         const nombre = Date.now().toString(36) + '-' +
-                       Math.random().toString(36).slice(2, 8) + '.jpg';
+                       Math.random().toString(36).slice(2, 8) + '.' +
+                       extensionDe(imagen.type);
 
         const { error: errSubida } = await sb.storage
-          .from('galeria').upload(nombre, imagen, { contentType: 'image/jpeg' });
+          .from('galeria').upload(nombre, imagen, { contentType: imagen.type });
         if (errSubida) {
           if (/bucket/i.test(errSubida.message)) {
             throw new Error('Falta crear la galería: corre sql/instalar.sql');
