@@ -16,7 +16,7 @@
 -- --------------------------------------------------------------------------
 create table if not exists public.flores (
   id         uuid primary key default gen_random_uuid(),
-  texto      text         not null check (char_length(texto) between 1 and 1000),
+  texto      text         not null check (char_length(texto) between 1 and 2000),
   especie    text         not null default 'lirio',
   hue        int          not null default 0 check (hue between 0 and 360),
   foto       text,
@@ -46,6 +46,25 @@ end $$;
 alter table public.flores alter column especie set default 'lirio';
 alter table public.flores add column if not exists foto text;
 alter table public.flores add column if not exists corazon boolean not null default false;
+
+-- Las notas admiten 2000 caracteres. El `create table` de arriba no toca una
+-- tabla que ya existe, así que el tope viejo hay que cambiarlo a mano: se
+-- quita el que hubiera sobre `texto` y se pone el nuevo.
+do $$
+declare
+  c text;
+begin
+  for c in
+    select conname from pg_constraint
+     where conrelid = 'public.flores'::regclass and contype = 'c'
+       and pg_get_constraintdef(oid) like '%char_length(texto)%'
+  loop
+    execute format('alter table public.flores drop constraint %I', c);
+  end loop;
+
+  alter table public.flores
+    add constraint flores_texto_largo check (char_length(texto) between 1 and 2000);
+end $$;
 
 -- --------------------------------------------------------------------------
 -- 2. Quién puede hacer qué
