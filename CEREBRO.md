@@ -57,14 +57,14 @@ HTML, CSS y JS puro, sin framework. Supabase de base de datos. **Vercel**
   `--zoom` y un `scale` (`1da87d0`).
 - **`requestAnimationFrame` no dispara con la pestaña oculta**: los modales se
   quedaban invisibles. Se fuerza un reflow.
-- **`.campo` chocaba** entre el suelo del jardín y los campos de formulario.
-- Al pintar texto de fuera en `innerHTML`, **escapar siempre**: la galería está
-  abierta a cualquiera.
+- **`vercel.json` no admite claves de comentario** (`"//"`): el build falla
+  entero y el sitio se queda en el commit anterior sin avisar.
+- **`.campo` chocaba** entre el suelo del jardín y los campos de formulario. Y
+  al pintar texto de fuera en `innerHTML`, **escapar siempre**.
 
 ## Estado y pendientes
 
-- Vercel tardó en recoger commits: comprobar que `/api/playlist?id=…` da 200 y
-  que llega la cabecera CSP.
+- Tras desplegar, comprobar que `/api/playlist?id=…` da 200 y llega la CSP.
 - **El repo es público y lleva la clave anon.** Ponerlo privado cierra el único
   hueco real: que un desconocido cuelgue un dibujo.
 - En local: `?demo=1` usa localStorage; `?hora=22` fuerza la hora.
