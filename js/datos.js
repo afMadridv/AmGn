@@ -234,8 +234,8 @@
     },
 
     /* ------------------------------------------------------- la galería --
-       Colgar no pide cuenta: el enlace es de ella. Quitar, comentar y marcar
-       favoritos sí, y de eso se encarga el RLS.                            */
+       Colgar no pide cuenta: el enlace es de ella. Quitar sí, y de eso se
+       encarga el RLS. El corazón va por función, como en las notas.        */
     arte: {
       async listar() {
         const { data, error } = await sb
@@ -281,13 +281,6 @@
           const { error: err } = await sb.storage.from('galeria').remove([nombre]);
           if (err) console.info('El dibujo se quitó, pero su archivo sigue ahí:', err.message);
         }
-      },
-
-      async comentar(id, texto) {
-        const { data, error } = await sb.from(OBRAS)
-          .update({ comentario: texto || null }).eq('id', id).select();
-        if (error) throw error;
-        if (!data || !data.length) throw new Error(SIN_PERMISO);
       },
 
       // El corazón, igual que en las notas: por función, para no abrirle un
@@ -381,7 +374,7 @@
         const obra = {
           id: 'o_' + Date.now().toString(36),
           titulo, descripcion, imagen: url,
-          comentario: null, corazon: false,
+          corazon: false,
           created_at: new Date().toISOString()
         };
         const todas = this._leer(); todas.unshift(obra); this._guardar(todas);
@@ -389,12 +382,6 @@
       },
 
       async borrar(id) { this._guardar(this._leer().filter(o => o.id !== id)); },
-
-      async comentar(id, texto) {
-        const t = this._leer();
-        const o = t.find(x => x.id === id);
-        if (o) { o.comentario = texto || null; this._guardar(t); }
-      },
 
       async darCorazon(id) {
         const t = this._leer();

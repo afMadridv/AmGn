@@ -145,7 +145,6 @@ create table if not exists public.obras (
   titulo      text        not null check (char_length(titulo) between 1 and 120),
   descripcion text        check (char_length(descripcion) <= 2000),
   imagen      text        not null,
-  comentario  text        check (char_length(comentario) <= 600),  -- lo que le dice su fan
   corazon     boolean     not null default false,
   created_at  timestamptz not null default now()
 );
@@ -172,6 +171,9 @@ alter table public.obras add column if not exists corazon boolean not null defau
 -- Todos los dibujos van en marco polaroid, así que ya no hace falta guardar
 -- cuál. La columna sólo tenía el nombre del marco: nada que perder.
 alter table public.obras drop column if exists marco;
+
+-- A sus dibujos se les da corazón y nada más: la nota escrita se quitó.
+alter table public.obras drop column if exists comentario;
 
 -- El corazón de sus dibujos, igual que el de las notas: se da una vez y no se
 -- puede quitar. Va por función para no tener que abrirle un UPDATE a nadie.
@@ -222,11 +224,9 @@ create policy "arte lo cuelga la casa"
   to anon, authenticated
   with check (true);
 
-create policy "arte lo retoca la casa"
-  on public.obras for update
-  to authenticated
-  using (es_de_la_casa())
-  with check (es_de_la_casa());
+-- No hay política de UPDATE a propósito: a un dibujo colgado sólo se le da
+-- corazón, y eso pasa por `dar_corazon_obra()`. Nadie necesita poder cambiar
+-- una fila entera.
 
 create policy "arte lo quita la casa"
   on public.obras for delete

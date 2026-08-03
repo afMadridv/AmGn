@@ -8,10 +8,9 @@
        sesión para dibujar en su propia galería sobra.
      · QUITAR un dibujo sí pide la sesión del jardín. Es la única puerta que
        queda cerrada, para que nadie pueda vaciarle la galería de un golpe.
-     · Él, desde esa misma sesión, deja su COMENTARIO de fan.
      · El CORAZÓN funciona como el de las notas, pero al revés: allí ella se
        lo da a lo que él escribe, aquí él se lo da a lo que ella dibuja. Se da
-       una vez y no se quita.
+       una vez y no se quita, y es lo único que se le hace a un dibujo.
 
    Quien manda de verdad es el RLS de sql/instalar.sql: aquí sólo se decide
    qué botones se enseñan.
@@ -45,12 +44,7 @@
     obraTituloVer: $('#obraTituloVer'),
     obraFecha:   $('#obraFecha'),
     obraDescVer: $('#obraDescripcionVer'),
-    obraComentario: $('#obraComentario'),
-    obraComentarioTexto: $('#obraComentarioTexto'),
     btnCorazon:  $('#btnCorazonObra'),
-    obraFan:     $('#obraFan'),
-    fanTexto:    $('#fanTexto'),
-    btnGuardarFan: $('#btnGuardarFan'),
     btnBorrarObra: $('#btnBorrarObra')
   };
   if (!el.boton) return;
@@ -81,8 +75,7 @@
         </span>
         <span class="obra-tarjeta-pie">
           <span class="obra-tarjeta-titulo">${J().escapar(o.titulo)}</span>
-          ${o.corazon ? '<span class="obra-tarjeta-marca obra-tarjeta-marca--corazon" title="Con el corazón de tu fan">♥</span>' : ''}
-          ${o.comentario ? '<span class="obra-tarjeta-marca" title="Con nota de tu fan">✎</span>' : ''}
+          ${o.corazon ? '<span class="obra-tarjeta-marca--corazon" title="Con el corazón de tu fan">♥</span>' : ''}
         </span>`;
       b.addEventListener('click', () => verObra(o.id));
       el.rejilla.appendChild(b);
@@ -102,15 +95,9 @@
     el.obraDescVer.textContent = o.descripcion || '';
     el.obraDescVer.hidden = !o.descripcion;
 
-    el.obraComentario.hidden = !o.comentario;
-    el.obraComentarioTexto.textContent = o.comentario || '';
-
     pintarCorazon();
 
-    // Escribir el comentario y quitar el dibujo son cosa suya, con la sesión
-    // del jardín abierta.
-    el.obraFan.hidden = !esFan;
-    el.fanTexto.value = o.comentario || '';
+    // Quitar un dibujo es cosa suya, con la sesión del jardín abierta.
     el.btnBorrarObra.hidden = !esFan;
 
     J().abrirModal(el.modalObra);
@@ -138,25 +125,6 @@
       pintarCorazon();
       J().aviso('No pude guardar el corazón');
       console.error(err);
-    }
-  });
-
-  el.btnGuardarFan.addEventListener('click', async () => {
-    if (!abierta) return;
-    const texto = el.fanTexto.value.trim();
-    el.btnGuardarFan.disabled = true;
-    try {
-      await Datos.arte.comentar(abierta.id, texto);
-      abierta.comentario = texto || null;
-      el.obraComentario.hidden = !texto;
-      el.obraComentarioTexto.textContent = texto;
-      pintarRejilla();
-      J().aviso('Se lo dejaste dicho');
-    } catch (err) {
-      J().aviso('No pude guardarlo');
-      console.error(err);
-    } finally {
-      el.btnGuardarFan.disabled = false;
     }
   });
 

@@ -25,7 +25,7 @@ HTML, CSS y JS puro, sin framework. Supabase de base de datos. **Vercel**
 
 - **Ella** entra por el enlace, sin cuenta: lee notas, da corazón, cuelga dibujos.
 - **Él** entra por el portal (esquina inferior derecha) con usuario de Supabase:
-  siembra notas, comenta dibujos, borra.
+  siembra notas y borra. A un dibujo sólo se le da corazón, nada más.
 - Su sesión **no persiste** a propósito (`4a5f4e5`): si le presta el móvil, el
   portal vuelve a pedir contraseña.
 - Lo que ella puede hacer sin cuenta va por funciones `security definer`

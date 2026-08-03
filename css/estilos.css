@@ -65,7 +65,7 @@ button { font-family: inherit; color: inherit; }
 
 .portada-halo {
   position: absolute;
-  width: min(78vw, 460px);
+  width: min(92vw, 560px);   /* el halo tiene que seguir siendo mayor que el ramo */
   aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255,255,255,.9), rgba(255,255,255,0) 68%);
@@ -109,17 +109,23 @@ button { font-family: inherit; color: inherit; }
 .ramo {
   position: relative;
   display: grid; place-items: center;
-  width: min(74vw, 340px);
+  width: min(88vw, 430px);
   height: 100%;            /* la fila 1fr manda; si no, el ramo se desborda */
   min-height: 0;
-  max-height: min(64vh, 480px);
+  max-height: min(74vh, 600px);
   cursor: pointer;
-  animation: mecer 5s ease-in-out infinite;
-  transition: transform .35s ease;
+  /* El vaivén no arranca hasta que el ramo está armado (ver el guion de
+     abajo): mecer un montón de piezas que todavía están entrando hace que
+     parezca que el dibujo se descuadra. */
+  animation: mecer 5s ease-in-out 2.9s infinite;
+  /* scale y no transform: `mecer` anima `rotate`, que es otra propiedad. Con
+     los dos en `transform` la animación infinita pisaba al :active y el
+     hundido del toque no se veía nunca. */
+  transition: scale .35s ease;
 }
-.ramo:active { transform: scale(.96); }
+.ramo:active { scale: .96; }
 .ramo:focus-visible { outline: 2px solid var(--acento); outline-offset: 12px; border-radius: 20px; }
-@keyframes mecer { 0%,100% { transform: rotate(-1.6deg); } 50% { transform: rotate(1.6deg); } }
+@keyframes mecer { 0%,100% { rotate: -1.6deg; } 50% { rotate: 1.6deg; } }
 
 .ramo-svg {
   width: 100%; height: 100%;
@@ -129,16 +135,69 @@ button { font-family: inherit; color: inherit; }
   overflow: hidden;
 }
 
-/* Cada lirio se abre por su cuenta, con un pequeño retraso. */
-.lirio-svg {
+/* ---------------------- el guion de entrada del ramo ---------------------
+   El ramo se arma en el orden en que lo armaría una florista, y cada pieza
+   entra como se movería de verdad:
+
+     0.00-0.92  los tallos se dibujan de abajo arriba, uno tras otro
+     0.30-1.32  el verde brota desde su base
+     0.58-1.62  la paniculata y los capullos, que van con el mismo brote
+     0.80-2.85  las flores se abren, de la corona al frente
+     2.05-2.85  se ata el lazo
+     2.90-      empieza el vaivén
+
+   El escalonado de cada pieza vive en su `--retraso` (js/flores-svg.js), y
+   el de los tallos en su `--i`.                                            */
+
+/* Tallos: pathLength="1" en el SVG deja que un mismo dasharray de 1 valga
+   para cualquier tallo, sin medir la longitud de cada curva. */
+.ramo-tallo path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: crecer .5s ease-out both;
+  animation-delay: calc(var(--i, 0) * .022s);
+}
+@keyframes crecer { to { stroke-dashoffset: 0; } }
+
+/* El verde brota desde donde nace, no desde su centro: por eso el origen va
+   abajo. Se estira más de alto que de ancho, como una rama que sale. */
+.ramo-verde {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: brotar .7s cubic-bezier(.2, .8, .3, 1) backwards;
+  animation-delay: var(--retraso, 0s);
+}
+@keyframes brotar {
+  from { scale: .6 .25; opacity: 0; }
+  to   { scale: 1;      opacity: 1; }
+}
+
+/* Cada flor se abre por su cuenta. El giro es corto (-14°) a propósito: con
+   quince flores girando 35° cada una, la entrada se leía como un remolino. */
+.ramo-flor {
   transform-box: fill-box;
   transform-origin: center;
-  animation: abrirse 1.5s cubic-bezier(.2,.9,.3,1.25) backwards;
+  animation: abrirse .85s cubic-bezier(.18, .9, .32, 1.15) backwards;
   animation-delay: var(--retraso, 0s);
 }
 @keyframes abrirse {
-  from { scale: 0; opacity: 0; rotate: -35deg; }
-  to   { scale: 1; opacity: 1; rotate: 0deg; }
+  0%   { scale: .25; opacity: 0; rotate: -14deg; }
+  55%  { opacity: 1; }
+  70%  { scale: 1.05; }
+  100% { scale: 1; opacity: 1; rotate: 0deg; }
+}
+
+/* El lazo se ata al final, cuando ya están todas las flores: primero se
+   aplasta a lo ancho y luego se suelta, que es como se aprieta un nudo. */
+.ramo-lazo {
+  transform-box: fill-box;
+  transform-origin: center top;
+  animation: atar .8s 2.05s cubic-bezier(.2, .9, .3, 1.25) backwards;
+}
+@keyframes atar {
+  0%   { scale: .25 .5; opacity: 0; }
+  60%  { scale: 1.08 1.03; opacity: 1; }
+  100% { scale: 1; opacity: 1; }
 }
 
 /* ==========================================================================
@@ -1160,7 +1219,6 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   font-size: .92rem;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.obra-tarjeta-marca { color: var(--tinta-suave); font-size: .8rem; }
 .obra-tarjeta-marca--corazon { color: var(--acento); font-size: .88rem; }
 
 /* ====================================================== MARCO POLAROID ===
@@ -1249,32 +1307,6 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 }
 .obra-descripcion[hidden] { display: none; }
 
-/* Lo que le dice su fan: una nota pegada al cuadro. */
-.obra-comentario {
-  margin: 18px 0 0;
-  padding: 14px 16px;
-  border-left: 3px solid var(--acento);
-  border-radius: 4px 12px 12px 4px;
-  background: #fdeef2;
-  text-align: left;
-}
-.obra-comentario[hidden] { display: none; }
-.obra-comentario blockquote {
-  margin: 0;
-  font-family: var(--serif);
-  font-size: 1.02rem;
-  font-style: italic;
-  line-height: 1.5;
-  color: #7a4c5c;
-}
-.obra-comentario figcaption {
-  margin-top: 7px;
-  font-size: .72rem;
-  color: var(--acento);
-}
-
-.obra-fan { margin-top: 18px; text-align: left; }
-.obra-fan[hidden] { display: none; }
 
 /* ----------------------------------------------------------- corazón ---- */
 .corazon {
@@ -1679,6 +1711,10 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   *, *::before, *::after {
     animation-duration: .001ms !important;
     animation-iteration-count: 1 !important;
+    /* También el retraso: sin esto el guion de entrada del ramo seguía
+       esperando sus 2 s con la pieza invisible, y el lazo tardaba en salir
+       aunque no hubiera nada que animar. */
+    animation-delay: 0s !important;
     transition-duration: .12s !important;
   }
   .patico { display: none; }

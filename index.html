@@ -302,27 +302,12 @@
     <time class="obra-fecha" id="obraFecha"></time>
     <p class="obra-descripcion" id="obraDescripcionVer"></p>
 
-    <figure class="obra-comentario" id="obraComentario" hidden>
-      <blockquote id="obraComentarioTexto"></blockquote>
-      <figcaption>— tu fan número uno</figcaption>
-    </figure>
-
     <button class="corazon" id="btnCorazonObra" type="button"
             aria-pressed="false" aria-label="Dar corazón a este dibujo">
       <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
         <path d="M12 21s-8-5.2-8-10.4A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 3.6C20 15.8 12 21 12 21z"/>
       </svg>
     </button>
-
-    <!-- Sólo lo ve él, con la sesión del jardín abierta -->
-    <div class="obra-fan" id="obraFan" hidden>
-      <label class="campo">
-        <span>Lo que le dirías</span>
-        <textarea id="fanTexto" rows="2" maxlength="600"
-                  placeholder="Dile lo que ves en este dibujo…"></textarea>
-      </label>
-      <button class="btn btn--principal" type="button" id="btnGuardarFan">Guardar</button>
-    </div>
 
     <button class="enlace-tenue enlace-tenue--peligro" type="button" id="btnBorrarObra" hidden>
       Quitar este dibujo

@@ -347,72 +347,412 @@
   }
 
   /* ======================================================================= */
-  /*  RAMO DE LA PORTADA — acuarela suave, como la lámina botánica.          */
+  /*  RAMO DE LA PORTADA — "Abanico": ancho, de copa plana.                  */
+  /*  --------------------------------------------------------------------- */
+  /*  Rosas blancas y rosadas + lirios. El lirio manda: va al doble de       */
+  /*  tamaño que la rosa (radio ~47 contra ~25).                            */
+  /*                                                                         */
+  /*  Las flores NO van por pisos. Antes quedaban los lirios arriba y las    */
+  /*  rosas abajo y el ramo se leía como dos bandas pegadas; ahora cada      */
+  /*  altura mezcla las dos especies: hay lirio abajo del todo y rosas en la */
+  /*  corona alta. El campo `y` de cada flor es lo único que hay que tocar   */
+  /*  para recolocar el reparto.                                             */
   /* ======================================================================= */
-  function lirioAcuarela(x, y, rot, esc, tono, retraso) {
-    const id = 'lg' + (++n);
-    const claro = tono === 'rosa' ? '#fff6f9' : tono === 'crema' ? '#fffdf2' : '#ffffff';
-    const osc   = tono === 'rosa' ? '#f0aec8' : tono === 'crema' ? '#f2e0ad' : '#e9e2f2';
-    const vena  = tono === 'rosa' ? '#e893b4' : tono === 'crema' ? '#e6cf8d' : '#d9d2ea';
+
+  /* Azar con semilla: el temblor de los pétalos y la paniculata salen
+     iguales en cada recarga. */
+  function azar(semilla) {
+    let s = semilla * 9301 + 49297;
+    return () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648;
+  }
+
+  const TONO_ROSA = {
+    blanca:   { claro:'#ffffff', medio:'#f8f2ea', hondo:'#e9dccb', borde:'#c3ad96', filo:'#ffffff' },
+    rosaPalo: { claro:'#fff6f8', medio:'#fbdde6', hondo:'#f3b9cd', borde:'#cf90a8', filo:'#fffafc' },
+    rosada:   { claro:'#fff0f4', medio:'#f9c3d5', hondo:'#ea8fb0', borde:'#c26e8e', filo:'#fff5f8' }
+  };
+  const TONO_LIRIO = {
+    rosa:       { c1:'#fff7fa', c2:'#f4b3c9', borde:'#d98aa8', vena:'#e792ae',
+                  peca:'#9c3c58', garganta:'#f8d79a', antera:'#b04a2a' },
+    blancoRosa: { c1:'#ffffff', c2:'#fdeef3', borde:'#dda9bd', vena:'#ef9ab8',
+                  peca:'#c04a72', garganta:'#f7cfa8', antera:'#b04a2a' }
+  };
+
+  /* -------------------------------------------------------------- rosa ---
+     Diseño "Abierta": un anillo ancho, otro pequeño dentro y estambres
+     dorados a la vista. Cada pétalo lleva su cuenco en sombra y su filo
+     vuelto en luz; sin eso la flor sale plana como una escarapela.        */
+  const P_ROSA   = { ext:'M0,7 C 21,5 32,-9 30,-26 C 28,-39 16,-46 6,-41 C 3,-39 -3,-39 -6,-41 C -16,-46 -28,-39 -30,-26 C -32,-9 -21,5 0,7 Z',
+                     med:'M0,5 C 16,3 25,-9 23,-24 C 21,-35 10,-40 0,-34 C -10,-40 -21,-35 -23,-24 C -25,-9 -16,3 0,5 Z' };
+  const CUENCO   = { ext:'M0,7 C 13,5 21,-4 22,-15 C 13,-7 -13,-7 -22,-15 C -21,-4 -13,5 0,7 Z',
+                     med:'M0,4 C 10,3 17,-3 18,-12 C 10,-5 -10,-5 -18,-12 C -17,-3 -10,3 0,4 Z' };
+  const FILO     = { ext:'M-23,-29 C -12,-41 12,-41 23,-29',
+                     med:'M-18,-25 C -10,-35 10,-35 18,-25' };
+
+  function rosaRamo(x, y, rot, esc, tono, retraso, semilla) {
+    const T  = TONO_ROSA[tono] || TONO_ROSA.rosada;
+    const az = azar(semilla || 7);
+    const gExt = 'rE' + (++n), gMed = 'rM' + (++n);
+
+    const anillo = (num, escala, giro, forma, grad) => {
+      let s = '';
+      for (let i = 0; i < num; i++) {
+        const a  = giro + i * (360 / num) + (az() - .5) * 13;
+        const e2 = escala * (1 + (az() - .5) * .12);
+        s += `<g transform="rotate(${a.toFixed(1)}) scale(${e2.toFixed(3)})">
+          <path d="${P_ROSA[forma]}" fill="url(#${grad})" stroke="${T.borde}"
+                stroke-width="${(1.5 / e2).toFixed(2)}" stroke-linejoin="round"/>
+          <path d="${CUENCO[forma]}" fill="${T.borde}" opacity=".15"/>
+          <path d="${FILO[forma]}" fill="none" stroke="${T.filo}"
+                stroke-width="${(2.6 / e2).toFixed(2)}" opacity=".7" stroke-linecap="round"/>
+        </g>`;
+      }
+      return s;
+    };
+
+    let est = '';
+    for (let i = 0; i < 10; i++) {
+      const a = i * 36 * Math.PI / 180;
+      const lx = (Math.sin(a) * 11).toFixed(1), ly = (-Math.cos(a) * 11).toFixed(1);
+      est += `<path d="M0,0 L${lx},${ly}" stroke="#e3cd8e" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="${lx}" cy="${ly}" r="1.9" fill="#e0a83c"/>`;
+    }
+
+    /* Sépalos: tres puntas verdes por detrás. Delatan que la flor está
+       pegada a un tallo y no flotando. */
+    const sepalos = [30, 150, 270].map(a =>
+      `<g transform="rotate(${a}) translate(0,-4)">
+         <path d="M0,8 C 5,-4 5,-26 0,-40 C -5,-26 -5,-4 0,8 Z"
+               fill="#93b47c" stroke="#6d9159" stroke-width="1.1" stroke-linejoin="round"/>
+       </g>`).join('');
+
+    return `<g class="ramo-flor" style="--retraso:${retraso}s">
+      <g transform="translate(${x} ${y}) rotate(${rot}) scale(${esc})">
+        <defs>
+          <radialGradient id="${gExt}" cx="50%" cy="96%" r="92%">
+            <stop offset="0%" stop-color="${T.medio}"/>
+            <stop offset="55%" stop-color="${T.claro}"/>
+            <stop offset="100%" stop-color="${T.claro}"/>
+          </radialGradient>
+          <radialGradient id="${gMed}" cx="50%" cy="96%" r="90%">
+            <stop offset="0%" stop-color="${T.hondo}"/>
+            <stop offset="45%" stop-color="${T.medio}"/>
+            <stop offset="100%" stop-color="${T.claro}"/>
+          </radialGradient>
+        </defs>
+        ${sepalos}
+        ${anillo(8, 1, 0, 'ext', gExt)}
+        ${anillo(6, .6, 24, 'med', gMed)}
+        ${est}<circle r="4.5" fill="#dbc98a"/><circle r="2.2" fill="#b7a45f"/>
+      </g>
+    </g>`;
+  }
+
+  /* ------------------------------------------------------------- lirio ---
+     Diseño "Asiático": pétalo corto y ancho, mira de frente. Las pecas son
+     la marca de la casa: sin ellas parece una estrella de papel.          */
+  const P_LIRIO_D = 'M0,3 C 11,-8 17,-22 16,-36 C 15,-46 8,-53 0,-55 C -8,-53 -15,-46 -16,-36 C -17,-22 -11,-8 0,3 Z';
+
+  function lirioRamo(x, y, rot, esc, tono, retraso) {
+    const T = TONO_LIRIO[tono] || TONO_LIRIO.rosa;
+    const id = 'gl' + (++n);
+    const L = 55;
+
+    let pecas = '';
+    for (let i = 0; i < 5; i++) {
+      const py = (-(L * .2) - i * (L * .45 / 5)).toFixed(1);
+      const px = (i % 2 ? 1 : -1) * (3.2 + (i % 3));
+      pecas += `<ellipse cx="${px}" cy="${py}" rx="${(1.4 + (i % 2) * .4).toFixed(1)}" ry="2.1"
+                  transform="rotate(${px > 0 ? 20 : -20} ${px} ${py})"
+                  fill="${T.peca}" opacity=".6"/>`;
+    }
 
     let petalos = '';
     for (let i = 0; i < 6; i++) {
       const a = i * 60 + (i % 2 ? 8 : -8);
-      petalos += `
-        <g transform="rotate(${a})">
-          <path d="${FORMA.lanza.d}" transform="scale(1.28)"
-                fill="url(#${id})" stroke="${osc}" stroke-width="1.5" stroke-linejoin="round"/>
-          <path d="M0,-2 L0,-72" stroke="${vena}" stroke-width="2" stroke-linecap="round" fill="none"/>
-          <path d="M0,-26 q 7,-12 10,-28" stroke="${vena}" stroke-width="1.1" fill="none" opacity=".7"/>
-          <path d="M0,-26 q -7,-12 -10,-28" stroke="${vena}" stroke-width="1.1" fill="none" opacity=".7"/>
-        </g>`;
-    }
-    let est = '';
-    for (let i = 0; i < 6; i++) {
-      const a  = (i * 58 + 15) * Math.PI / 180;
-      const lx = Math.sin(a) * 26, ly = -Math.cos(a) * 26;
-      est += `<path d="M0,0 Q ${lx * .4},${ly * .85} ${lx},${ly}" fill="none"
-                stroke="#dfc98d" stroke-width="2.2" stroke-linecap="round"/>
-              <ellipse cx="${lx}" cy="${ly}" rx="5" ry="3"
-                transform="rotate(${i * 58 + 15} ${lx} ${ly})" fill="#e79236"/>`;
+      const ancho = i % 2 ? 1 : .93;        // tres sépalos algo más estrechos
+      petalos += `<g transform="rotate(${a}) scale(${ancho} 1)">
+        <path d="${P_LIRIO_D}" fill="url(#${id})" stroke="${T.borde}"
+              stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M0,2 C 5,-7 7,-17 6,-25 C 3,-19 -3,-19 -6,-25 C -7,-17 -5,-7 0,2 Z"
+              fill="${T.garganta}" opacity=".5"/>
+        <path d="M0,-2 L0,-48" stroke="${T.vena}" stroke-width="1.9"
+              stroke-linecap="round" fill="none"/>
+        <path d="M0,-20 q 7,-12 10,-25" stroke="${T.vena}" stroke-width="1" fill="none" opacity=".55"/>
+        <path d="M0,-20 q -7,-12 -10,-25" stroke="${T.vena}" stroke-width="1" fill="none" opacity=".55"/>
+        ${pecas}
+      </g>`;
     }
 
-    return `<g class="lirio-svg" style="--retraso:${retraso}s">
+    let est = '';
+    for (let i = 0; i < 6; i++) {
+      const gr = i * 58 + 15;
+      const a  = gr * Math.PI / 180;
+      const lx = (Math.sin(a) * 23).toFixed(1), ly = (-Math.cos(a) * 23).toFixed(1);
+      est += `<path d="M0,0 Q ${(lx * .4).toFixed(1)},${(ly * .85).toFixed(1)} ${lx},${ly}"
+                fill="none" stroke="#e0c98e" stroke-width="2" stroke-linecap="round"/>
+              <g transform="translate(${lx} ${ly}) rotate(${gr})">
+                <ellipse rx="2.6" ry="5.4" fill="${T.antera}" stroke="rgba(0,0,0,.2)" stroke-width=".6"/>
+                <ellipse cx="-.7" cy="-1.4" rx=".8" ry="2" fill="#fff" opacity=".35"/>
+              </g>`;
+    }
+    est += `<path d="M0,0 Q 3,-12 6,-26" fill="none" stroke="#cfd79a"
+              stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="6" cy="-26" r="2.8" fill="#c2cf7e"/>`;
+
+    return `<g class="ramo-flor" style="--retraso:${retraso}s">
       <g transform="translate(${x} ${y}) rotate(${rot}) scale(${esc})">
         <defs>
-          <radialGradient id="${id}" cx="50%" cy="86%" r="80%">
-            <stop offset="0%" stop-color="${claro}"/>
-            <stop offset="46%" stop-color="${claro}"/>
-            <stop offset="100%" stop-color="${osc}"/>
+          <radialGradient id="${id}" cx="50%" cy="88%" r="80%">
+            <stop offset="0%" stop-color="${T.c1}"/>
+            <stop offset="44%" stop-color="${T.c1}"/>
+            <stop offset="100%" stop-color="${T.c2}"/>
           </radialGradient>
         </defs>
-        ${petalos}${est}
-        <circle r="5" fill="#f5e9c2"/>
+        ${petalos}${est}<circle r="4.5" fill="#f7ecc9"/>
       </g>
     </g>`;
   }
 
   function capullo(x, y, rot, esc, retraso) {
-    return `<g class="lirio-svg" style="--retraso:${retraso}s">
+    const id = 'gc' + (++n);
+    return `<g class="ramo-verde" style="--retraso:${retraso}s">
       <g transform="translate(${x} ${y}) rotate(${rot}) scale(${esc})">
-        <path d="M0,0 C 15,-13 13,-50 0,-68 C -13,-50 -15,-13 0,0 Z"
-              fill="#eaf3d9" stroke="#a8c48a" stroke-width="1.6" stroke-linejoin="round"/>
-        <path d="M0,-1 C 9,-15 8,-48 0,-66" fill="none" stroke="#bcd6a0" stroke-width="1.4"/>
-        <path d="M0,-1 C -9,-15 -8,-48 0,-66" fill="none" stroke="#bcd6a0" stroke-width="1.4"/>
+        <defs>
+          <linearGradient id="${id}" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#dfeccb"/>
+            <stop offset="55%" stop-color="#eff5df"/>
+            <stop offset="100%" stop-color="#f7d9e4"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,0 C 15,-13 13,-50 0,-70 C -13,-50 -15,-13 0,0 Z"
+              fill="url(#${id})" stroke="#a8c48a" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M0,-1 C 9,-16 8,-49 0,-68" fill="none" stroke="#b9d29d" stroke-width="1.3"/>
+        <path d="M0,-1 C -9,-16 -8,-49 0,-68" fill="none" stroke="#b9d29d" stroke-width="1.3"/>
+        <path d="M0,-2 C 5,-14 5,-40 1,-62" fill="none" stroke="#fff" stroke-width="2" opacity=".45"/>
       </g>
     </g>`;
   }
 
-  function hoja(d, nervio, tono) {
-    return `<g>
-      <path d="${d}" fill="${tono}" stroke="#5f9448" stroke-width="1.5" stroke-linejoin="round"/>
-      <path d="${nervio}" fill="none" stroke="#5f9448" stroke-width="1.2" opacity=".55"/>
+  /* ------------------------------------------------------------- verde --- */
+  function eucalipto(x, y, rot, esc, hojas, retraso) {
+    let s = `<path d="M0,4 C 4,-26 -2,-62 1,-98" fill="none" stroke="#8fa98b"
+                   stroke-width="2.2" stroke-linecap="round"/>`;
+    for (let i = 1; i <= hojas; i++) {
+      const t = i / hojas, hy = -(t * 96) - 2, hx = Math.sin(t * 2.4) * 5;
+      const lado = i % 2 ? 1 : -1, r = 9.5 - t * 3.6;
+      s += `<g transform="translate(${(hx + lado * (r + 1.5)).toFixed(1)} ${hy.toFixed(1)})
+                          rotate(${lado * 24})">
+        <ellipse rx="${r.toFixed(1)}" ry="${(r * .84).toFixed(1)}"
+                 fill="${i % 3 ? '#a9c3a6' : '#8dae8d'}" stroke="#8dae8d" stroke-width=".9"/>
+        <ellipse cx="${(-r * .28).toFixed(1)}" cy="${(-r * .3).toFixed(1)}"
+                 rx="${(r * .34).toFixed(1)}" ry="${(r * .26).toFixed(1)}" fill="#fff" opacity=".26"/>
+      </g>`;
+    }
+    return `<g class="ramo-verde" style="--retraso:${retraso}s">
+      <g transform="translate(${x} ${y}) rotate(${rot}) scale(${esc})">${s}</g></g>`;
+  }
+
+  function follaje(x, y, rot, esc, retraso) {
+    let s = `<path d="M0,4 C -3,-24 2,-56 0,-86" fill="none" stroke="#4e8a3a"
+                   stroke-width="2.4" stroke-linecap="round"/>`;
+    for (let i = 1; i <= 5; i++) {
+      const t = i / 5, hy = -(t * 80), lado = i % 2 ? 1 : -1, L = 30 - t * 12;
+      s += `<path d="M0,${hy.toFixed(0)} c ${lado * L * .5},-3 ${lado * L * .85},-11 ${lado * L},-22
+                     c ${lado * -L * .6},3 ${lado * -L * .95},10 ${lado * -L},22 Z"
+                  fill="${i % 2 ? '#6ea656' : '#4f8b3e'}" stroke="#4f8b3e"
+                  stroke-width="1.1" stroke-linejoin="round"/>`;
+    }
+    return `<g class="ramo-verde" style="--retraso:${retraso}s">
+      <g transform="translate(${x} ${y}) rotate(${rot}) scale(${esc})">${s}</g></g>`;
+  }
+
+  function paniculata(x, y, esc, semilla, retraso) {
+    const r = azar(semilla);
+    let tallos = '', flores = '';
+    for (let i = 0; i < 13; i++) {
+      const a = (-20 - r() * 140) * Math.PI / 180;       // sólo hacia arriba
+      const d = 8 + r() * 24;
+      const px = (Math.cos(a) * d).toFixed(1);
+      const py = (Math.sin(a) * d - r() * 6).toFixed(1);
+      tallos += `<path d="M0,4 Q ${(px * .5).toFixed(1)},${(py * .5).toFixed(1)} ${px},${py}"
+                   fill="none" stroke="#cbd6bd" stroke-width=".8"/>`;
+      flores += `<circle cx="${px}" cy="${py}" r="${(1.9 + r() * 1.5).toFixed(1)}"
+                   fill="#fffdf6" stroke="#e4dcc7" stroke-width=".6"/>`;
+    }
+    return `<g class="ramo-verde" style="--retraso:${retraso}s">
+      <g transform="translate(${x} ${y}) scale(${esc})">${tallos}${flores}</g></g>`;
+  }
+
+  /* -------------------------------------------------- moño rosa pastel --- */
+  const CINTA = { claro:'#ffeaf1', medio:'#fbd0de', osc:'#f0aec6',
+                  borde:'#dd93ae', encaje:'#fffafc' };
+
+  /* Festón de puntilla: arcos pegados uno detrás de otro. Un arco lee como
+     encaje; una fila de circulitos lee como lunares. */
+  function feston(x, y, ancho, num, grosor, rot) {
+    const r = ancho / (num * 2);
+    let d = `M${x},${y}`;
+    for (let i = 0; i < num; i++) d += ` a ${r.toFixed(1)},${r.toFixed(1)} 0 0,0 ${(r * 2).toFixed(1)},0`;
+    return `<path d="${d}" fill="none" stroke="${CINTA.encaje}" stroke-width="${grosor}"
+                  stroke-linecap="round" opacity=".9"
+                  ${rot ? `transform="rotate(${rot} ${x} ${y})"` : ''}/>`;
+  }
+
+  function lazo() {
+    const RASO = 'raso' + (++n), C = CINTA;
+    return `<g class="ramo-lazo">
+      <defs>
+        <!-- Brillo del raso: claro en el centro de la cinta, apagado en los
+             filos. userSpaceOnUse porque las lazadas son muy planas. -->
+        <linearGradient id="${RASO}" gradientUnits="userSpaceOnUse" x1="0" y1="424" x2="0" y2="492">
+          <stop offset="0%" stop-color="${C.medio}"/>
+          <stop offset="38%" stop-color="${C.claro}"/>
+          <stop offset="62%" stop-color="${C.claro}"/>
+          <stop offset="100%" stop-color="${C.osc}"/>
+        </linearGradient>
+      </defs>
+
+      <g><!-- colas, detrás de todo -->
+        <path d="M147,462 C 140,492 132,514 116,538 L 128,546 L 135,533 L 145,543
+                 C 155,516 159,490 159,464 Z"
+              fill="url(#${RASO})" stroke="${C.borde}" stroke-width="1.3" stroke-linejoin="round"/>
+        <path d="M153,462 C 161,494 170,516 186,540 L 173,547 L 166,534 L 156,544
+                 C 146,516 142,490 141,464 Z"
+              fill="${C.medio}" stroke="${C.borde}" stroke-width="1.3" stroke-linejoin="round"/>
+        <path d="M150,474 C 145,500 138,518 125,537" fill="none" stroke="${C.encaje}"
+              stroke-width="1.8" opacity=".7"/>
+        <path d="M154,474 C 160,500 168,518 179,536" fill="none" stroke="${C.encaje}"
+              stroke-width="1.8" opacity=".7"/>
+        ${feston(117, 539, 26, 4, 1.5, 34)}
+        ${feston(160, 546, 26, 4, 1.5, -34)}
+      </g>
+
+      <!-- banda que envuelve el manojo -->
+      <path d="M119,438 C 139,432 161,432 181,438 L 184,470 C 162,477 138,477 116,470 Z"
+            fill="url(#${RASO})" stroke="${C.borde}" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M119,449 C 140,443 160,443 181,449" fill="none" stroke="${C.encaje}"
+            stroke-width="2.6" opacity=".85"/>
+      ${feston(119, 468, 62, 7, 1.6)}
+
+      <!-- lazada de detrás: más grande y apagada, da el grosor -->
+      <path d="M150,452 C 112,416 62,430 68,464 C 74,494 122,480 150,458 Z"
+            fill="${C.osc}" stroke="${C.borde}" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M150,452 C 186,418 234,434 226,466 C 219,494 174,478 150,458 Z"
+            fill="${C.osc}" stroke="${C.borde}" stroke-width="1.4" stroke-linejoin="round"/>
+
+      <!-- lazada de delante: la izquierda algo mayor, para que no sea espejo -->
+      <path d="M150,452 C 118,422 80,434 86,462 C 92,486 126,476 150,459 Z"
+            fill="url(#${RASO})" stroke="${C.borde}" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M150,452 C 180,424 214,436 209,462 C 204,484 172,475 150,459 Z"
+            fill="url(#${RASO})" stroke="${C.borde}" stroke-width="1.5" stroke-linejoin="round"/>
+
+      <path d="M147,455 C 128,447 108,449 96,459" fill="none" stroke="${C.borde}"
+            stroke-width="1.2" opacity=".55"/>
+      <path d="M153,455 C 172,448 190,450 200,459" fill="none" stroke="${C.borde}"
+            stroke-width="1.2" opacity=".55"/>
+      ${feston(88, 468, 58, 6, 1.5, -7)}
+      ${feston(152, 466, 56, 6, 1.5, 7)}
+
+      <!-- nudo -->
+      <path d="M142,446 C 148,442 152,442 158,446 C 162,454 162,463 158,471
+               C 152,475 148,475 142,471 C 138,463 138,454 142,446 Z"
+            fill="${C.medio}" stroke="${C.borde}" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M145,450 C 149,447 151,447 155,450" fill="none" stroke="${C.encaje}"
+            stroke-width="1.7" opacity=".8"/>
     </g>`;
   }
 
+  /* ------------------------------------------------------------ el ramo --
+     El reparto. `t` es 'L' lirio o 'R' rosa, y el orden de la lista ES el
+     orden de dibujo: lo de arriba queda detrás. Fíjate en que las alturas
+     se alternan: hay rosa en la corona (y≈170) y lirio en el frente
+     (y≈320), justo lo contrario de tenerlas por pisos.                    */
+  const RAMO_FLORES = [
+    // ---- corona alta: dos lirios de fuera y DOS ROSAS arriba ----
+    { t:'L', x: 62, y:214, r:-30, e:.8,  tono:'rosa',       d:.80 },
+    { t:'L', x:238, y:210, r: 30, e:.8,  tono:'rosa',       d:.86 },
+    { t:'R', x: 96, y:176, r:-14, e:.56, tono:'blanca',     d:.94, s: 3 },
+    { t:'R', x:206, y:170, r: 14, e:.56, tono:'rosaPalo',   d:1.02, s: 9 },
+    { t:'L', x:150, y:164, r:  0, e:.88, tono:'blancoRosa', d:1.10 },
+
+    // ---- anillo medio: lirio y rosa alternados, y rosas en los extremos ----
+    { t:'R', x: 54, y:274, r:-20, e:.5,  tono:'rosaPalo',   d:1.20, s:13 },
+    { t:'R', x:246, y:278, r: 20, e:.5,  tono:'rosada',     d:1.27, s:21 },
+    { t:'L', x:104, y:252, r:-16, e:.84, tono:'rosa',       d:1.35 },
+    { t:'L', x:196, y:256, r: 16, e:.84, tono:'rosa',       d:1.43 },
+    { t:'R', x:150, y:238, r:  0, e:.62, tono:'rosada',     d:1.52, s:27 },
+
+    // ---- frente: LIRIO abajo del todo, con rosas a los lados ----
+    { t:'R', x: 92, y:314, r:-12, e:.58, tono:'blanca',     d:1.62, s:33 },
+    { t:'R', x:208, y:318, r: 12, e:.58, tono:'blanca',     d:1.70, s:41 },
+    { t:'L', x:150, y:320, r:  0, e:.84, tono:'rosa',       d:1.80 },
+    { t:'R', x:120, y:356, r:-10, e:.52, tono:'rosaPalo',   d:1.90, s:47 },
+    { t:'R', x:180, y:358, r: 10, e:.52, tono:'rosada',     d:2.00, s:53 }
+  ];
+
+  const NUDO_Y = 452;
+
+  /* Los tallos se dibujan de abajo arriba con stroke-dashoffset (ver
+     .ramo-tallo en estilos.css). `pathLength="1"` normaliza cada curva, así
+     un mismo dasharray vale para todas sin medir su longitud real, y `--i`
+     las escalona. */
+  function tallos(puntos) {
+    let i = 0;
+    const punta = d => `<path style="--i:${i++}" pathLength="1" d="${d}"/>`;
+    return `<g class="ramo-tallo" fill="none" stroke="url(#tallo)"
+                stroke-width="4.6" stroke-linecap="round">` +
+      puntos.map(([x, y]) => punta(
+        `M150,${NUDO_Y + 24} Q ${(150 + (x - 150) * .3).toFixed(0)},${((NUDO_Y + y) / 2).toFixed(0)} ${x},${y + 14}`
+      )).join('') + `</g>
+      <!-- puntas cortadas asomando bajo la cinta -->
+      <g class="ramo-tallo" fill="none" stroke="#5f8f45" stroke-width="4"
+         stroke-linecap="round" opacity=".9">
+        ${punta('M148,466 C 144,500 140,524 136,548')}
+        ${punta('M152,466 C 156,500 160,524 164,548')}
+        ${punta('M150,466 C 150,500 150,524 150,552')}
+        ${punta('M146,466 C 138,498 130,520 122,542')}
+        ${punta('M154,466 C 162,498 170,520 178,542')}
+      </g>`;
+  }
+
   function ramo() {
+    // Los retrasos son el guion de entrada; están explicados en estilos.css,
+    // bajo "el guion de entrada del ramo". Verde de fuera hacia dentro.
+    const verde = [
+      eucalipto( 58, 322, -32, .78, 6, .30),
+      eucalipto(242, 326,  32, .78, 6, .34),
+      eucalipto( 92, 268, -26, .84, 6, .42),
+      eucalipto(208, 272,  26, .84, 6, .46),
+      eucalipto(150, 148,   0, .8,  6, .54),
+      follaje( 76, 350, -24, .8,  .38),
+      follaje(224, 354,  24, .8,  .40),
+      follaje(112, 152, -18, .74, .58),
+      follaje(188, 150,  18, .74, .62)
+    ].join('');
+
+    const nube = [
+      paniculata( 70, 286, .8,  3, .58),
+      paniculata(230, 290, .8,  7, .62),
+      paniculata(150, 140, .85,11, .70),
+      paniculata(110, 196, .8, 17, .66),
+      paniculata(190, 200, .8, 23, .68),
+      paniculata(150, 340, .75,29, .74)
+    ].join('');
+
+    const capullos = [
+      capullo( 88, 196, -30, .74, .84),
+      capullo(212, 192,  30, .72, .88),
+      capullo(150, 124,   0, .66, .92)
+    ].join('');
+
+    const flores = RAMO_FLORES.map(f => f.t === 'R'
+      ? rosaRamo(f.x, f.y, f.r, f.e, f.tono, f.d, f.s)
+      : lirioRamo(f.x, f.y, f.r, f.e, f.tono, f.d)).join('');
+
     return `<svg viewBox="0 0 300 560" class="ramo-svg"
-              xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ramo de lirios">
+              xmlns="http://www.w3.org/2000/svg" role="img"
+              aria-label="Ramo de rosas y lirios atado con un lazo rosa">
       <defs>
         <!-- userSpaceOnUse: en un tallo casi vertical el bounding box no tiene
              ancho y un gradiente relativo se degenera (no pinta nada). -->
@@ -420,56 +760,24 @@
           <stop offset="0%" stop-color="#86bd66"/><stop offset="100%" stop-color="#3f7333"/>
         </linearGradient>
       </defs>
-
       <g filter="url(#trazo)">
-        <g fill="none" stroke="url(#tallo)" stroke-width="5.5" stroke-linecap="round">
-          <path d="M150,500 C 150,400 152,260 150,150"/>
-          <path d="M150,500 C 140,400 104,300 80,206"/>
-          <path d="M150,500 C 160,400 196,300 220,210"/>
-          <path d="M150,500 C 146,410 124,330 112,286"/>
-          <path d="M150,500 C 154,412 178,336 192,294"/>
-          <path d="M150,500 C 158,420 216,320 246,150"/>
-          <path d="M150,500 C 142,420 88,330 60,170"/>
-        </g>
-
-        ${hoja('M150,452 C 104,438 66,404 44,356 C 88,364 130,396 150,452 Z',
-               'M150,452 C 118,424 84,392 46,358', '#68ab4d')}
-        ${hoja('M150,444 C 196,430 234,398 256,352 C 212,358 170,390 150,444 Z',
-               'M150,444 C 182,416 216,386 254,354', '#5c9c43')}
-        ${hoja('M150,414 C 116,400 92,374 78,340 C 110,348 138,374 150,414 Z',
-               'M150,414 C 126,392 102,368 80,342', '#7cba5c')}
-        ${hoja('M150,408 C 184,394 208,368 222,334 C 190,342 162,368 150,408 Z',
-               'M150,408 C 174,386 198,362 220,336', '#71b154')}
-
-        ${capullo(246, 150, 14, 1, .9)}
-        ${capullo(60, 170, -16, .88, 1.05)}
-
-        ${lirioAcuarela(150, 150, 0, 1.14, 'crema', .1)}
-        ${lirioAcuarela(80, 206, -20, 1.04, 'rosa', .3)}
-        ${lirioAcuarela(220, 210, 20, 1.00, 'rosa', .45)}
-        ${lirioAcuarela(112, 286, -9, .95, 'blanco', .6)}
-        ${lirioAcuarela(192, 294, 11, .92, 'blanco', .75)}
-
-        <g>
-          <path d="M120,470 C 96,450 84,486 114,482 Z" fill="#dd8fac" stroke="#c4708f" stroke-width="1.4"/>
-          <path d="M180,470 C 204,450 216,486 186,482 Z" fill="#dd8fac" stroke="#c4708f" stroke-width="1.4"/>
-          <rect x="122" y="464" width="56" height="15" rx="7.5" fill="#e8a3bd" stroke="#c4708f" stroke-width="1.4"/>
-          <path d="M132,492 C 128,506 122,514 116,520" fill="none" stroke="#dd8fac" stroke-width="3.4" stroke-linecap="round"/>
-          <path d="M168,492 C 172,506 178,514 184,520" fill="none" stroke="#dd8fac" stroke-width="3.4" stroke-linecap="round"/>
-        </g>
+        ${tallos(RAMO_FLORES.map(f => [f.x, f.y]))}
+        ${verde}${nube}${capullos}${flores}${lazo()}
       </g>
     </svg>`;
   }
 
-  /* Filtro de trazo del ramo: le da el temblor del dibujo a mano. --------- */
+  /* Filtro de trazo del ramo: le da el temblor del dibujo a mano. Con el
+     ramo nuevo hay mucho más detalle que desplazar, y con scale 2.4 los
+     pétalos pequeños de la rosa se deshilachaban: por eso 1.4. ---------- */
   function inyectarFiltro() {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('width', '0'); s.setAttribute('height', '0');
     s.style.cssText = 'position:absolute;pointer-events:none';
     s.innerHTML = `<defs>
-      <filter id="trazo" x="-15%" y="-15%" width="130%" height="130%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="2" seed="7" result="ruido"/>
-        <feDisplacementMap in="SourceGraphic" in2="ruido" scale="2.4"
+      <filter id="trazo" x="-12%" y="-12%" width="124%" height="124%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="2" seed="7" result="ruido"/>
+        <feDisplacementMap in="SourceGraphic" in2="ruido" scale="1.4"
                            xChannelSelector="R" yChannelSelector="G"/>
       </filter>
     </defs>`;
