@@ -121,43 +121,13 @@
     anterior = m;
   }
 
-  /* ------------------------------------------------------------ lluvia ---
-     De vez en cuando llueve. Se decide una vez por minuto, en el mismo repaso
-     que ya hace el ciclo del día: nada de temporizadores nuevos.
-
-     Con ?lluvia=1 se fuerza el chaparrón, para poder verlo sin esperar a que
-     toque.                                                                  */
-  const LLUEVE_CADA_MINUTO = 0.012;    // ~1 vez cada 80 min de mirar el jardín
-  let lloviendoHasta = 0;
-
-  const lluviaForzada = new URLSearchParams(location.search).get('lluvia') === '1';
-
-  function repasarLluvia() {
-    if (lluviaForzada) { jardin.dataset.lluvia = 'si'; return; }
-
-    const ahora = Date.now();
-    if (ahora < lloviendoHasta) return;              // sigue el chaparrón
-
-    if (jardin.dataset.lluvia === 'si') {
-      jardin.dataset.lluvia = 'no';                  // acaba de escampar
-      return;
-    }
-    if (Math.random() < LLUEVE_CADA_MINUTO) {
-      jardin.dataset.lluvia = 'si';
-      lloviendoHasta = ahora + (45 + Math.random() * 75) * 1000;   // 45-120 s
-    }
-  }
-
-  function repaso() { actualizar(); repasarLluvia(); }
-
-  repaso();
-  setInterval(repaso, 60000);
+  actualizar();
+  setInterval(actualizar, 60000);
 
   // Al volver del segundo plano puede haber pasado media tarde.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) repaso();
+    if (!document.hidden) actualizar();
   });
 
-  window.Cielo = { actualizar, momento, horaBogota,
-                   llover: si => { jardin.dataset.lluvia = si ? 'si' : 'no'; } };
+  window.Cielo = { actualizar, momento, horaBogota };
 })();

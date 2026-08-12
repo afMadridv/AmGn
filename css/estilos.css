@@ -538,65 +538,6 @@ button { font-family: inherit; color: inherit; }
 }
 .colinas--lejos::after { display: none; }
 
-/* ----------------------------------------------------------------- lluvia -
-   Tres capas de gotas, cada una un repeating-linear-gradient que se desplaza:
-   son tres nodos en lugar de doscientas gotas sueltas, y el navegador sólo
-   mueve tres fondos. Las capas van a distinta velocidad y tamaño, que es lo
-   que da la sensación de profundidad.
-
-   Los tres anchos (13, 19 y 29px) son primos entre sí: el patrón tarda en
-   repetirse y no se ve la rejilla.                                          */
-.lluvia {
-  position: absolute; inset: 0;
-  z-index: 440;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 3s ease;
-}
-.jardin[data-lluvia="si"] .lluvia { opacity: 1; }
-
-.gotas {
-  position: absolute; inset: -20% 0 0;
-  background-repeat: repeat;
-}
-/* Las de delante: gruesas, rápidas y bien inclinadas. */
-.gotas--1 {
-  background-image: repeating-linear-gradient(102deg,
-    transparent 0 11px,
-    rgba(214, 238, 255, .55) 11px 12px,
-    transparent 12px 13px);
-  background-size: 13px 62px;
-  animation: caer .55s linear infinite;
-}
-/* Las del medio. */
-.gotas--2 {
-  background-image: repeating-linear-gradient(100deg,
-    transparent 0 17px,
-    rgba(206, 232, 255, .4) 17px 18px,
-    transparent 18px 19px);
-  background-size: 19px 48px;
-  animation: caer .82s linear infinite;
-  opacity: .8;
-}
-/* Las del fondo: finas, lentas y casi transparentes. */
-.gotas--3 {
-  background-image: repeating-linear-gradient(98deg,
-    transparent 0 27px,
-    rgba(198, 226, 250, .28) 27px 28px,
-    transparent 28px 29px);
-  background-size: 29px 38px;
-  animation: caer 1.25s linear infinite;
-  opacity: .65;
-}
-@keyframes caer { to { background-position: -60px 300px; } }
-
-/* Mientras llueve el jardín se apaga y se pone gris azulado. */
-.jardin[data-lluvia="si"] .colinas,
-.jardin[data-lluvia="si"] .tierra { filter: brightness(.82) saturate(.72); }
-.jardin[data-lluvia="si"] .capa-cielo { filter: brightness(.7) saturate(.6); }
-/* La tierra mojada brilla un poco donde le daría la luz. */
-.jardin[data-lluvia="si"] .surco { opacity: .82; }
-
 /* ----------------------------------------------------------------- tinte -
    Una sola veladura sobre todo el paisaje: sin ella el cielo cambia de hora
    pero la tierra y las flores se quedan en pleno mediodía.                  */
