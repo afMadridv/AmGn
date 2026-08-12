@@ -22,6 +22,34 @@
   <div class="ramo" id="ramo" role="button" tabindex="0" aria-label="Abrir el jardín"></div>
 
   <button class="portada-cta" id="btnEntrar">Toca el ramo</button>
+
+  <!-- La puerta del jardín. Se abre al tocar el ramo, sobre la propia portada:
+       por eso el cristal esmerilado, para que se siga viendo el ramo detrás. -->
+  <div class="puerta" id="puerta" hidden>
+    <div class="puerta-fondo" data-cerrar-puerta></div>
+
+    <form class="puerta-tarjeta" id="formPuerta" autocomplete="on">
+      <div class="puerta-flor" id="puertaFlor" aria-hidden="true"></div>
+      <h2 class="puerta-titulo">El jardín está cerrado</h2>
+      <p class="puerta-sub">Pero tú tienes la llave</p>
+
+      <label class="puerta-campo">
+        <span>Usuario</span>
+        <input type="email" id="puertaUser" required autocomplete="username"
+               placeholder="tu@correo.com" enterkeyhint="go">
+      </label>
+
+      <label class="puerta-campo">
+        <span>Contraseña</span>
+        <input type="password" id="puertaPass" required autocomplete="current-password"
+               placeholder="••••••••" enterkeyhint="go">
+      </label>
+
+      <p class="error puerta-error" id="puertaError" hidden></p>
+
+      <button class="puerta-btn" type="submit" id="btnPuerta">Abrir el jardín</button>
+    </form>
+  </div>
 </section>
 
 <!-- ============ EL JARDÍN ============ -->

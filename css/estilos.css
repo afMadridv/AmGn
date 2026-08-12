@@ -103,6 +103,133 @@ button { font-family: inherit; color: inherit; }
 }
 @keyframes respirar { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
 
+/* ---------------------------- la puerta del jardín ----------------------
+   Cristal esmerilado sobre la portada: el ramo se sigue viendo detrás,
+   borroso. Ése es todo el truco del glassmorphism —fondo translúcido, blur
+   de lo que hay debajo, un filo claro arriba y sombra larga abajo—, y por eso
+   la tarjeta NO puede llevar un fondo opaco.
+
+   Lo que hay detrás no es decoración: la llave se pide para entrar al jardín,
+   no para proteger los datos. Eso lo hacen las políticas RLS de Supabase.   */
+.puerta {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.puerta[hidden] { display: none; }
+
+.puerta-fondo {
+  position: absolute;
+  inset: 0;
+  background: rgba(120, 80, 100, .18);
+  backdrop-filter: blur(9px) saturate(115%);
+  -webkit-backdrop-filter: blur(9px) saturate(115%);
+  animation: velo .5s ease backwards;
+}
+@keyframes velo { from { opacity: 0; } to { opacity: 1; } }
+
+.puerta-tarjeta {
+  position: relative;
+  width: min(92vw, 360px);
+  display: grid;
+  gap: 12px;
+  padding: 26px 24px 24px;
+  border-radius: 26px;
+  /* El degradado en diagonal es lo que simula el reflejo del cristal: más
+     claro por la esquina de arriba a la izquierda, donde daría la luz. */
+  background: linear-gradient(145deg, rgba(255,255,255,.55), rgba(255,255,255,.22));
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255,255,255,.6);
+  box-shadow: 0 18px 42px rgba(90, 55, 75, .26),
+              inset 0 1px 0 rgba(255,255,255,.85);
+  text-align: center;
+  animation: puerta-entra .55s cubic-bezier(.18,.9,.32,1.12) backwards;
+}
+@keyframes puerta-entra {
+  from { opacity: 0; scale: .9; translate: 0 14px; }
+  to   { opacity: 1; scale: 1;  translate: 0 0; }
+}
+
+.puerta-flor { display: grid; place-items: center; margin-bottom: 2px; }
+.puerta-flor .svg-flor { width: 54px; height: 54px; }
+
+.puerta-titulo {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: #5f4250;
+}
+.puerta-sub {
+  margin: -6px 0 6px;
+  font-size: .82rem;
+  color: #7d6270;
+}
+
+.puerta-campo { display: grid; gap: 5px; text-align: left; }
+.puerta-campo span {
+  font-size: .72rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #7d6270;
+}
+.puerta-campo input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.7);
+  background: rgba(255,255,255,.45);
+  font: inherit;
+  font-size: .95rem;
+  color: #4a3540;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.puerta-campo input::placeholder { color: #ab93a1; }
+.puerta-campo input:focus {
+  outline: none;
+  background: rgba(255,255,255,.72);
+  border-color: rgba(216,116,143,.7);
+  box-shadow: 0 0 0 3px rgba(216,116,143,.18);
+}
+
+.puerta-error {
+  margin: 0;
+  font-size: .78rem;
+  color: #a8203a;
+}
+.puerta-error[hidden] { display: none; }
+
+.puerta-btn {
+  margin-top: 4px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--acento), var(--acento-osc));
+  color: #fff;
+  font: inherit;
+  font-size: .95rem;
+  letter-spacing: .04em;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(185, 89, 117, .34);
+  transition: scale .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+.puerta-btn:hover { filter: brightness(1.06); box-shadow: 0 10px 22px rgba(185, 89, 117, .42); }
+.puerta-btn:active { scale: .97; }
+.puerta-btn:disabled { opacity: .6; cursor: default; scale: 1; }
+
+/* Sin backdrop-filter (Firefox con la opción apagada, navegadores viejos) el
+   cristal sería un rectángulo casi transparente con el texto ilegible encima:
+   se cae a un fondo sólido. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .puerta-fondo   { background: rgba(90, 60, 80, .45); }
+  .puerta-tarjeta { background: rgba(255, 250, 252, .96); }
+}
+
 /* ---------------------------- el ramo de lirios -------------------------
    Es un SVG (js/flores-svg.js): vectorial, así que se ve nítido en cualquier
    pantalla y en cualquier densidad de píxeles.                             */

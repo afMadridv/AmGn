@@ -38,6 +38,14 @@
     notaFoto:   $('#notaFoto'),
     notaTexto:  $('#notaTexto'),
 
+    puerta:     $('#puerta'),
+    formPuerta: $('#formPuerta'),
+    puertaUser: $('#puertaUser'),
+    puertaPass: $('#puertaPass'),
+    puertaError: $('#puertaError'),
+    puertaFlor: $('#puertaFlor'),
+    btnPuerta:  $('#btnPuerta'),
+
     modalLogin: $('#modalLogin'),
     formLogin:  $('#formLogin'),
     loginUser:  $('#loginUser'),
@@ -196,6 +204,7 @@
   function entrarAlJardin() {
     if (jardinAbierto) return;
     jardinAbierto = true;
+    el.puerta.hidden = true;
     el.portada.classList.add('saliendo');
     el.jardin.hidden = false;
     // El toque del ramo es el gesto que los navegadores exigen para dejar
@@ -205,11 +214,103 @@
     el.jardin.classList.add('visible');
     setTimeout(() => { el.portada.hidden = true; }, 900);
   }
-  el.ramo.addEventListener('click', entrarAlJardin);
-  el.ramo.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); entrarAlJardin(); }
+
+  /* --------------------------------------------------- la puerta del jardín --
+     Tocar el ramo ya no entra directo: primero pide la llave.
+
+     Dos juegos de credenciales, y no son intercambiables:
+       · las del jardín (CFG.ACCESO_JARDIN) abren el jardín y NADA más. El
+         portal secreto sigue pidiendo las suyas.
+       · las del portal (usuario de Supabase) abren las dos cosas: entran al
+         jardín y de paso dejan la sesión hecha, así que el portal ya no
+         vuelve a preguntar.
+
+     Que la llave del jardín viva en el frontend es a propósito y es lo que
+     hay: cualquiera puede leerla en el código. Es un portón para que no entre
+     quien tropiece con el enlace, no una protección de los datos —de eso se
+     encargan las políticas RLS de Supabase.                                  */
+  const LLAVE = 'patico:puerta';
+  const ACCESO = (CFG.ACCESO_JARDIN || {});
+
+  const tieneLlave = () => {
+    try { return localStorage.getItem(LLAVE) === '1'; } catch { return false; }
+  };
+  const guardarLlave = () => {
+    try { localStorage.setItem(LLAVE, '1'); } catch { /* modo incógnito */ }
+  };
+
+  const esLlaveDelJardin = (usuario, clave) =>
+    Boolean(ACCESO.usuario) &&
+    usuario.toLowerCase() === String(ACCESO.usuario).toLowerCase() &&
+    clave === ACCESO.clave;
+
+  async function tocarElRamo() {
+    if (jardinAbierto) return;
+    // Ya entró antes, o él tiene la sesión del portal abierta: pasa directo.
+    if (tieneLlave() || await Datos.sesion()) { entrarAlJardin(); return; }
+    abrirPuerta();
+  }
+
+  function abrirPuerta() {
+    if (!el.puerta.hidden) return;
+    el.puertaError.hidden = true;
+    el.puerta.hidden = false;
+    el.puertaFlor.innerHTML = FloresSVG.img('rosa', 54);
+    // Sin la espera el foco llega antes que la animación de entrada y el
+    // móvil sube el teclado con la tarjeta todavía a medio aparecer.
+    setTimeout(() => el.puertaUser.focus(), 420);
+  }
+
+  el.formPuerta.addEventListener('submit', async e => {
+    e.preventDefault();
+    const usuario = el.puertaUser.value.trim();
+    const clave   = el.puertaPass.value;
+
+    el.btnPuerta.disabled = true;
+    el.puertaError.hidden = true;
+
+    // 1. ¿Es la llave del jardín? Entra, pero sin tocar el portal.
+    if (esLlaveDelJardin(usuario, clave)) {
+      guardarLlave();
+      el.formPuerta.reset();
+      el.btnPuerta.disabled = false;
+      entrarAlJardin();
+      return;
+    }
+
+    // 2. Si no, se prueban contra el portal. Si son buenas, entra igual y
+    //    además queda dentro: el portal secreto ya no le preguntará.
+    try {
+      await Datos.entrar(usuario, clave);
+      guardarLlave();
+      el.formPuerta.reset();
+      entrarAlJardin();
+    } catch {
+      el.puertaError.textContent = 'Esa no es la llave. Míralo bien.';
+      el.puertaError.hidden = false;
+      el.puertaPass.value = '';
+      el.puertaPass.focus();
+    } finally {
+      el.btnPuerta.disabled = false;
+    }
   });
-  el.btnEntrar.addEventListener('click', entrarAlJardin);
+
+  function cerrarPuerta() {
+    if (el.puerta.hidden) return;
+    el.puerta.hidden = true;
+    el.formPuerta.reset();
+    el.puertaError.hidden = true;
+  }
+  el.puerta.querySelector('[data-cerrar-puerta]').addEventListener('click', cerrarPuerta);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') cerrarPuerta();
+  });
+
+  el.ramo.addEventListener('click', tocarElRamo);
+  el.ramo.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tocarElRamo(); }
+  });
+  el.btnEntrar.addEventListener('click', tocarElRamo);
 
   /* --------------------------------------------------- posición aleatoria */
   // Evita que las flores se amontonen: intenta varias veces hasta encontrar

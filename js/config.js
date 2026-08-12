@@ -15,6 +15,17 @@ window.CONFIG = {
   // Nombre que aparece en la portada
   PARA: 'Gabriela',
 
+  // Llave del jardín: se pide al tocar el ramo, antes de entrar.
+  //
+  // OJO con qué es y qué no es esto. Vive en el frontend, así que cualquiera
+  // que abra las herramientas del navegador la lee: NO protege los datos, que
+  // siguen colgando de Supabase con sus políticas RLS. Es un portón: evita que
+  // entre quien tropiece con el enlace, nada más.
+  //
+  // Con el usuario y la contraseña del portal (los de Supabase) también se
+  // entra aquí, y además queda abierto el portal secreto.
+  ACCESO_JARDIN: { usuario: 'pato@gmail.com', clave: 'patico' },
+
   // Playlist de Spotify que suena de fondo. Es el id que va en la URL:
   // open.spotify.com/playlist/<ESTO>. Se lee en vivo: si añades canciones,
   // aparecen solas. Déjalo vacío para quitar la música.
