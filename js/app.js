@@ -345,6 +345,14 @@
     // La profundidad simula perspectiva: lo de abajo es lo más cercano.
     b.style.zIndex = String(10 + Math.round(flor.y));
     b.style.setProperty('--escala', (0.78 + flor.y / 190).toFixed(2));
+    // Profundidad de campo: 0 = al pie del observador, 1 = al fondo del campo.
+    // El CSS la convierte en desenfoque, color lavado y algo de transparencia.
+    // Se corta en y=45 porque más abajo ya es primer plano y no debe tocarse.
+    const lejania = Math.max(0, Math.min(1, (45 - flor.y) / 45));
+    b.style.setProperty('--lejania', lejania.toFixed(3));
+    // Sólo las de atrás llevan filtro: cada `filter` es una capa de composición
+    // más, y las de delante no ganan nada por un desenfoque de 0.05px.
+    if (lejania > 0.06) b.classList.add('lejana');
     b.style.setProperty('--hue', flor.hue + 'deg');
     b.style.setProperty('--bailes', (2.6 + Math.random() * 1.8).toFixed(2) + 's');
     b.style.setProperty('--retraso', (Math.random() * -3).toFixed(2) + 's');
