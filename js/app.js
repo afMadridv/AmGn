@@ -229,15 +229,18 @@
      hay: cualquiera puede leerla en el código. Es un portón para que no entre
      quien tropiece con el enlace, no una protección de los datos —de eso se
      encargan las políticas RLS de Supabase.                                  */
-  const LLAVE = 'patico:puerta';
   const ACCESO = (CFG.ACCESO_JARDIN || {});
 
-  const tieneLlave = () => {
-    try { return localStorage.getItem(LLAVE) === '1'; } catch { return false; }
-  };
-  const guardarLlave = () => {
-    try { localStorage.setItem(LLAVE, '1'); } catch { /* modo incógnito */ }
-  };
+  /* La llave vive en una variable, no en localStorage ni sessionStorage: los
+     dos sobreviven a recargar la página, y aquí recargar debe volver a pedir
+     usuario y contraseña. Morir con la página es el comportamiento pedido. */
+  let llavePuesta = false;
+  const tieneLlave = () => llavePuesta;
+  const guardarLlave = () => { llavePuesta = true; };
+
+  // La llave vieja de visitas anteriores ya no vale: se limpia para que un
+  // navegador que la guardó cuando persistía no siga entrando directo.
+  try { localStorage.removeItem('patico:puerta'); } catch { /* incógnito */ }
 
   const esLlaveDelJardin = (usuario, clave) =>
     Boolean(ACCESO.usuario) &&
