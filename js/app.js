@@ -216,23 +216,18 @@
   }
 
   /* --------------------------------------------------- la puerta del jardín --
-     Tocar el ramo ya no entra directo: primero pide la llave.
+     Tocar el ramo ya no entra directo: primero pide usuario y contraseña.
 
-     Dos juegos de credenciales, y no son intercambiables:
-       · las del jardín (CFG.ACCESO_JARDIN) abren el jardín y NADA más. El
-         portal secreto sigue pidiendo las suyas.
-       · las del portal (usuario de Supabase) abren las dos cosas: entran al
-         jardín y de paso dejan la sesión hecha, así que el portal ya no
-         vuelve a preguntar.
+     Ahora hay UNA sola credencial por persona, la de Supabase, y sirve para
+     todo: entrar al jardín, firmar comentarios y corazones, y abrir el portal
+     secreto sin que vuelva a preguntar.
 
-     Que la llave del jardín viva en el frontend es a propósito y es lo que
-     hay: cualquiera puede leerla en el código. Es un portón para que no entre
-     quien tropiece con el enlace, no una protección de los datos —de eso se
-     encargan las políticas RLS de Supabase.                                  */
-  const ACCESO = (CFG.ACCESO_JARDIN || {});
+     Antes había además una llave escrita en config.js. Se quitó: estaba en
+     claro en un repositorio público, y con dos usuarios de verdad ya no hace
+     falta. La contraseña la comprueba el servidor y no pasa por el código.  */
 
-  /* La llave vive en una variable, no en localStorage ni sessionStorage: los
-     dos sobreviven a recargar la página, y aquí recargar debe volver a pedir
+  /* La sesión vive en memoria, no en localStorage ni sessionStorage: los dos
+     sobreviven a recargar la página, y aquí recargar debe volver a pedir
      usuario y contraseña. Morir con la página es el comportamiento pedido. */
   let llavePuesta = false;
   const tieneLlave = () => llavePuesta;
@@ -241,11 +236,6 @@
   // La llave vieja de visitas anteriores ya no vale: se limpia para que un
   // navegador que la guardó cuando persistía no siga entrando directo.
   try { localStorage.removeItem('patico:puerta'); } catch { /* incógnito */ }
-
-  const esLlaveDelJardin = (usuario, clave) =>
-    Boolean(ACCESO.usuario) &&
-    usuario.toLowerCase() === String(ACCESO.usuario).toLowerCase() &&
-    clave === ACCESO.clave;
 
   async function tocarElRamo() {
     if (jardinAbierto) return;
@@ -272,20 +262,12 @@
     el.btnPuerta.disabled = true;
     el.puertaError.hidden = true;
 
-    // 1. ¿Es la llave del jardín? Entra, pero sin tocar el portal.
-    if (esLlaveDelJardin(usuario, clave)) {
-      guardarLlave();
-      el.formPuerta.reset();
-      el.btnPuerta.disabled = false;
-      entrarAlJardin();
-      return;
-    }
-
-    // 2. Si no, se prueban contra el portal. Si son buenas, entra igual y
-    //    además queda dentro: el portal secreto ya no le preguntará.
     try {
       await Datos.entrar(usuario, clave);
       guardarLlave();
+      // Quien firma acaba de cambiar: los comentarios y corazones que hubiera
+      // abiertos tienen que enterarse de quién es ahora.
+      if (window.Social) Social.olvidarSesion();
       el.formPuerta.reset();
       entrarAlJardin();
     } catch {
@@ -461,28 +443,8 @@
     return c && c.nombre !== 'natural' ? c.nombre : '';
   }
 
-  function pintarCorazon(flor) {
-    el.btnCorazon.classList.toggle('dado', flor.corazon);
-    el.btnCorazon.setAttribute('aria-pressed', String(flor.corazon));
-    el.btnCorazon.disabled = flor.corazon;   // se da una vez, no se quita
-  }
-
-  el.btnCorazon.addEventListener('click', async () => {
-    if (!florAbierta || florAbierta.corazon) return;
-    florAbierta.corazon = true;
-    pintarCorazon(florAbierta);
-    el.btnCorazon.classList.add('latiendo');
-    setTimeout(() => el.btnCorazon.classList.remove('latiendo'), 900);
-    try {
-      await Datos.darCorazon(florAbierta.id);
-    } catch (err) {
-      florAbierta.corazon = false;
-      pintarCorazon(florAbierta);
-      aviso('No pude guardar el corazón');
-      console.error(err);
-    }
-  });
-
+  /* El corazón y los comentarios los lleva js/social.js: ahí se sabe quién
+     firma y se guarda con su nombre. Aquí sólo se le pasa qué nota es. */
   function leerNota(id) {
     const flor = flores.find(f => f.id === id);
     if (!flor) return;
@@ -494,7 +456,6 @@
       const nodo = el.campo.querySelector(`[data-id="${id}"]`);
       if (nodo) Bichos.quitarDe(nodo);
     }
-    pintarCorazon(flor);
 
     el.notaFlor.innerHTML = FloresSVG.existe(flor.especie)
       ? FloresSVG.img(flor.especie, 96, false, flor.hue) : flor.especie;
@@ -515,6 +476,7 @@
     }
 
     el.notaTexto.textContent = flor.texto;
+    if (window.Social) Social.abrir($('#socialNota'), 'nota', flor.id, el.btnCorazon);
     abrir(el.modalNota);
   }
 
@@ -854,9 +816,21 @@
     aviso('Sesión cerrada');
   });
 
+  // Junto a un comentario sobra el año y la palabra entera del mes: se pone
+  // la hora si es de hoy, y si no, el día y el mes cortos.
+  const fechaCorta = iso => {
+    const d = new Date(iso);
+    const hoy = new Date();
+    // toLocaleDateString ignora hour/minute: para la hora hace falta la otra.
+    return d.toDateString() === hoy.toDateString()
+      ? d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+      : d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  };
+
   // Lo que la galería necesita del jardín: sus modales y sus avisos, para que
   // todo se abra y se anuncie igual.
-  window.Jardin = { abrirModal: abrir, cerrarModal: cerrar, aviso, fechaLarga, confirmar, escapar };
+  window.Jardin = { abrirModal: abrir, cerrarModal: cerrar, aviso,
+                    fechaLarga, fechaCorta, confirmar, escapar };
 
   /* ------------------------------------------------------------- arranque */
   (async function inicio() {

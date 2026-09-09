@@ -26,6 +26,7 @@
   const LLAVE = 'patico:flores';
   const OBRAS = 'obras';
   const LLAVE_OBRAS = 'patico:obras';
+  const LLAVE_SOCIAL = 'patico:social';
 
   // Con ?demo=1 la app trabaja contra localStorage aunque haya credenciales:
   // sirve para probar cambios sin tocar el jardín de verdad.
@@ -38,6 +39,29 @@
   // Lo que se dice cuando el RLS deja pasar la petición pero no toca ninguna
   // fila: casi siempre es que la sesión del portal ya no está abierta.
   const SIN_PERMISO = 'No se pudo: abre el portal e inténtalo otra vez.';
+  const SIN_SESION  = 'Entra al jardín para poder firmar esto.';
+
+  /* El nombre con el que se firma. Sale de CFG.NOMBRES; si el correo no está
+     en la lista se usa lo que hay antes de la arroba, con la inicial en alta,
+     para que nunca aparezca un comentario sin nombre. */
+  function nombreDe(correo) {
+    const c = String(correo || '').toLowerCase();
+    const puesto = (CFG.NOMBRES || {})[c];
+    if (puesto) return puesto;
+    const apodo = c.split('@')[0] || 'Alguien';
+    return apodo.charAt(0).toUpperCase() + apodo.slice(1);
+  }
+
+  const aComentario = f => ({
+    id: f.id, sobre: f.sobre, objeto: f.objeto,
+    autor: f.autor, nombre: nombreDe(f.autor),
+    texto: f.texto, fecha: f.created_at || new Date().toISOString()
+  });
+
+  const aCorazon = f => ({
+    autor: f.autor, nombre: nombreDe(f.autor),
+    fecha: f.created_at || new Date().toISOString()
+  });
 
   let sb = null;
   let alCambiar = () => {};
@@ -233,6 +257,87 @@
       return Boolean(data.session);
     },
 
+    async quienSoy() {
+      const { data } = await sb.auth.getSession();
+      const correo = data.session && data.session.user && data.session.user.email;
+      return correo ? { correo, nombre: nombreDe(correo) } : null;
+    },
+
+    /* --------------------------------------------------- comentarios y ♥ --
+       Las dos tablas van juntas porque se usan igual y siempre en pareja:
+       debajo de una nota o de un dibujo se enseña quién comentó y quién dio
+       corazón. `sobre` dice si el objeto es una nota o una obra.
+
+       El autor lo pone la política de la base (ver sql/instalar.sql): aquí se
+       manda, pero si no coincide con la sesión, el insert se rechaza. */
+    social: {
+      async listar(sobre, objeto) {
+        const [com, cor] = await Promise.all([
+          sb.from('comentarios').select('*')
+            .eq('sobre', sobre).eq('objeto', objeto)
+            .order('created_at', { ascending: true }),
+          sb.from('corazones').select('*')
+            .eq('sobre', sobre).eq('objeto', objeto)
+            .order('created_at', { ascending: true })
+        ]);
+        if (com.error) throw com.error;
+        if (cor.error) throw cor.error;
+        return {
+          comentarios: (com.data || []).map(aComentario),
+          corazones:   (cor.data || []).map(aCorazon)
+        };
+      },
+
+      async comentar(sobre, objeto, texto) {
+        const yo = await Remoto.quienSoy();
+        if (!yo) throw new Error(SIN_SESION);
+        const { data, error } = await sb.from('comentarios')
+          .insert({ sobre, objeto, autor: yo.correo, texto })
+          .select().single();
+        if (error) throw error;
+        return aComentario(data);
+      },
+
+      async borrarComentario(id) {
+        const { data, error } = await sb.from('comentarios')
+          .delete().eq('id', id).select();
+        if (error) throw error;
+        if (!data || !data.length) throw new Error('Ese comentario no es tuyo');
+      },
+
+      // La clave primaria (sobre, objeto, autor) impide dar dos veces el
+      // mismo corazón: si ya estaba, Postgres devuelve conflicto y se ignora.
+      async darCorazon(sobre, objeto) {
+        const yo = await Remoto.quienSoy();
+        if (!yo) throw new Error(SIN_SESION);
+        const { error } = await sb.from('corazones')
+          .upsert({ sobre, objeto, autor: yo.correo },
+                  { onConflict: 'sobre,objeto,autor', ignoreDuplicates: true });
+        if (error) throw error;
+        return aCorazon({ sobre, objeto, autor: yo.correo,
+                          created_at: new Date().toISOString() });
+      },
+
+      async quitarCorazon(sobre, objeto) {
+        const yo = await Remoto.quienSoy();
+        if (!yo) throw new Error(SIN_SESION);
+        const { error } = await sb.from('corazones').delete()
+          .eq('sobre', sobre).eq('objeto', objeto).eq('autor', yo.correo);
+        if (error) throw error;
+      },
+
+      // Un solo canal para las dos tablas: lo que escriba o marque el otro
+      // aparece sin recargar.
+      suscribir(cb) {
+        sb.channel('social')
+          .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'comentarios' }, cb)
+          .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'corazones' }, cb)
+          .subscribe();
+      }
+    },
+
     /* ------------------------------------------------------- la galería --
        Colgar no pide cuenta: el enlace es de ella. Quitar sí, y de eso se
        encarga el RLS. El corazón va por función, como en las notas.        */
@@ -392,12 +497,76 @@
       suscribir() {}
     },
 
-    async entrar(_email, pass) {
+    /* Comentarios y corazones de mentira, guardados en el propio navegador.
+       Sirven para probar la pantalla sin tocar el jardín de verdad. */
+    social: {
+      _leer() {
+        try { return JSON.parse(localStorage.getItem(LLAVE_SOCIAL)) || { c: [], k: [] }; }
+        catch { return { c: [], k: [] }; }
+      },
+      _guardar(v) { localStorage.setItem(LLAVE_SOCIAL, JSON.stringify(v)); },
+
+      async listar(sobre, objeto) {
+        const d = this._leer();
+        const mio = x => x.sobre === sobre && String(x.objeto) === String(objeto);
+        return {
+          comentarios: d.c.filter(mio).map(aComentario),
+          corazones:   d.k.filter(mio).map(aCorazon)
+        };
+      },
+
+      async comentar(sobre, objeto, texto) {
+        const yo = await Local.quienSoy();
+        if (!yo) throw new Error(SIN_SESION);
+        const nuevo = { id: 'c_' + Date.now().toString(36), sobre, objeto,
+                        autor: yo.correo, texto, created_at: new Date().toISOString() };
+        const d = this._leer(); d.c.push(nuevo); this._guardar(d);
+        return aComentario(nuevo);
+      },
+
+      async borrarComentario(id) {
+        const d = this._leer();
+        d.c = d.c.filter(x => x.id !== id);
+        this._guardar(d);
+      },
+
+      async darCorazon(sobre, objeto) {
+        const yo = await Local.quienSoy();
+        if (!yo) throw new Error(SIN_SESION);
+        const d = this._leer();
+        if (!d.k.some(x => x.sobre === sobre && String(x.objeto) === String(objeto) &&
+                           x.autor === yo.correo)) {
+          d.k.push({ sobre, objeto, autor: yo.correo,
+                     created_at: new Date().toISOString() });
+          this._guardar(d);
+        }
+        return aCorazon({ sobre, objeto, autor: yo.correo });
+      },
+
+      async quitarCorazon(sobre, objeto) {
+        const yo = await Local.quienSoy();
+        if (!yo) return;
+        const d = this._leer();
+        d.k = d.k.filter(x => !(x.sobre === sobre && String(x.objeto) === String(objeto) &&
+                                x.autor === yo.correo));
+        this._guardar(d);
+      },
+
+      suscribir() {}
+    },
+
+    // En demo la contraseña es 'demo' para cualquiera de los dos correos: así
+    // se puede probar cómo se ve firmando como uno o como el otro.
+    async entrar(email, pass) {
       if (pass !== 'demo') throw new Error('En modo demo la contraseña es: demo');
-      sessionStorage.setItem('patico:sesion', '1');
+      sessionStorage.setItem('patico:sesion', String(email || '').toLowerCase());
     },
     async salir()  { sessionStorage.removeItem('patico:sesion'); },
-    async sesion() { return sessionStorage.getItem('patico:sesion') === '1'; }
+    async sesion() { return Boolean(sessionStorage.getItem('patico:sesion')); },
+    async quienSoy() {
+      const correo = sessionStorage.getItem('patico:sesion');
+      return correo ? { correo, nombre: nombreDe(correo) } : null;
+    }
   };
 
   const impl = usaSupabase ? Remoto : Local;
@@ -414,8 +583,11 @@
     entrar:    (e,p)=> impl.entrar(e, p),
     salir:     ()   => impl.salir(),
     sesion:    ()   => impl.sesion(),
+    quienSoy:  ()   => impl.quienSoy(),
+    nombreDe,
     alConectar:cb   => { alEstado = cb; },
     reducirImagen,
-    arte: impl.arte
+    arte: impl.arte,
+    social: impl.social
   };
 })();

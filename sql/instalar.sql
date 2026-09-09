@@ -241,6 +241,125 @@ exception
 end $$;
 
 -- --------------------------------------------------------------------------
+-- 2d. Comentarios y corazones firmados
+--     Los dos escriben, en las notas y en los dibujos, y en cada cosa queda
+--     quién fue.
+--
+--     El autor NO lo decide el navegador: la política obliga a que la columna
+--     `autor` sea el correo del que tiene la sesión abierta. Aunque alguien
+--     trastee el JavaScript, no puede firmar como el otro.
+--
+--     ANTES DE EJECUTAR: los dos usuarios tienen que existir en
+--     Authentication → Users (con "Auto Confirm User" marcado).
+-- --------------------------------------------------------------------------
+create table if not exists public.comentarios (
+  id         uuid primary key default gen_random_uuid(),
+  sobre      text        not null check (sobre in ('nota', 'obra')),
+  objeto     uuid        not null,
+  autor      text        not null,
+  texto      text        not null check (char_length(texto) between 1 and 600),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists comentarios_objeto_idx
+  on public.comentarios (sobre, objeto, created_at);
+
+-- Un corazón por persona y por cosa: la clave primaria lo impide por sí sola,
+-- así no hace falta comprobarlo desde la app.
+create table if not exists public.corazones (
+  sobre      text        not null check (sobre in ('nota', 'obra')),
+  objeto     uuid        not null,
+  autor      text        not null,
+  created_at timestamptz not null default now(),
+  primary key (sobre, objeto, autor)
+);
+
+alter table public.comentarios enable row level security;
+alter table public.corazones   enable row level security;
+
+drop policy if exists "comentarios a la vista"   on public.comentarios;
+drop policy if exists "comenta la casa"          on public.comentarios;
+drop policy if exists "borra su comentario"      on public.comentarios;
+drop policy if exists "corazones a la vista"     on public.corazones;
+drop policy if exists "da corazon la casa"       on public.corazones;
+drop policy if exists "quita su corazon"         on public.corazones;
+
+create policy "comentarios a la vista"
+  on public.comentarios for select to anon, authenticated using (true);
+
+-- `autor = auth.jwt() ->> 'email'` es lo que hace fiable la firma.
+create policy "comenta la casa"
+  on public.comentarios for insert to authenticated
+  with check (es_de_la_casa() and autor = auth.jwt() ->> 'email');
+
+create policy "borra su comentario"
+  on public.comentarios for delete to authenticated
+  using (autor = auth.jwt() ->> 'email');
+
+create policy "corazones a la vista"
+  on public.corazones for select to anon, authenticated using (true);
+
+create policy "da corazon la casa"
+  on public.corazones for insert to authenticated
+  with check (es_de_la_casa() and autor = auth.jwt() ->> 'email');
+
+create policy "quita su corazon"
+  on public.corazones for delete to authenticated
+  using (autor = auth.jwt() ->> 'email');
+
+-- Las columnas `corazon` de flores y obras siguen existiendo: el libro y la
+-- rejilla las usan para pintar el ♥ sin tener que contar corazones. Este
+-- disparador las mantiene al día solo, así nadie tiene que acordarse.
+create or replace function public.sincronizar_corazon()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cual  text;
+  quien uuid;
+  hay   boolean;
+begin
+  -- En un trigger de DELETE la fila `new` no existe, y leerla revienta con
+  -- "record new is not assigned yet". Hay que mirar TG_OP, no dar por hecho
+  -- que una de las dos está.
+  if tg_op = 'DELETE' then
+    cual := old.sobre; quien := old.objeto;
+  else
+    cual := new.sobre; quien := new.objeto;
+  end if;
+
+  select exists (select 1 from public.corazones
+                  where sobre = cual and objeto = quien) into hay;
+
+  if cual = 'nota' then
+    update public.flores set corazon = hay where id = quien;
+  else
+    update public.obras  set corazon = hay where id = quien;
+  end if;
+  return null;
+end $$;
+
+drop trigger if exists corazones_sincronizan on public.corazones;
+create trigger corazones_sincronizan
+  after insert or delete on public.corazones
+  for each row execute function public.sincronizar_corazon();
+
+-- Que los comentarios y los corazones del otro aparezcan sin recargar.
+do $$
+begin
+  alter publication supabase_realtime add table public.comentarios;
+exception when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.corazones;
+exception when duplicate_object then null;
+end $$;
+
+-- --------------------------------------------------------------------------
 -- 3. Fotos de las notas
 -- --------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -336,4 +455,10 @@ select
   (select count(*) from auth.users)                                     as usuarios,
   (select count(*) from pg_proc
     where proname in ('dar_corazon', 'dar_corazon_obra', 'es_de_la_casa'))as funciones,
+  (select count(*) from pg_policies
+    where schemaname = 'public'
+      and tablename in ('comentarios', 'corazones'))                    as politicas_social,
+  (select string_agg(email, ', ' order by created_at)
+     from (select email, created_at from auth.users
+            order by created_at limit 2) c)                             as la_casa,
   (select email from auth.users order by created_at limit 1)            as duenio;

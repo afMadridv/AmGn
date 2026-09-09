@@ -95,38 +95,17 @@
     el.obraDescVer.textContent = o.descripcion || '';
     el.obraDescVer.hidden = !o.descripcion;
 
-    pintarCorazon();
-
     // Quitar un dibujo es cosa suya, con la sesión del jardín abierta.
     el.btnBorrarObra.hidden = !esFan;
 
+    // El corazón y los comentarios los lleva js/social.js, igual que en las
+    // notas: ahí se sabe quién firma y queda su nombre.
+    if (window.Social) {
+      Social.abrir(document.getElementById('socialObra'), 'obra', o.id, el.btnCorazon);
+    }
+
     J().abrirModal(el.modalObra);
   }
-
-  /* -------------------------------------------------------- el corazón -- */
-  function pintarCorazon() {
-    if (!abierta) return;
-    el.btnCorazon.classList.toggle('dado', abierta.corazon);
-    el.btnCorazon.setAttribute('aria-pressed', String(abierta.corazon));
-    el.btnCorazon.disabled = abierta.corazon;   // se da una vez, no se quita
-  }
-
-  el.btnCorazon.addEventListener('click', async () => {
-    if (!abierta || abierta.corazon) return;
-    abierta.corazon = true;
-    pintarCorazon();
-    el.btnCorazon.classList.add('latiendo');
-    setTimeout(() => el.btnCorazon.classList.remove('latiendo'), 900);
-    try {
-      await Datos.arte.darCorazon(abierta.id);
-      pintarRejilla();
-    } catch (err) {
-      abierta.corazon = false;
-      pintarCorazon();
-      J().aviso('No pude guardar el corazón');
-      console.error(err);
-    }
-  });
 
   el.btnBorrarObra.addEventListener('click', async () => {
     if (!abierta) return;

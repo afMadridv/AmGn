@@ -1469,6 +1469,131 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 .obra-descripcion[hidden] { display: none; }
 
 
+/* ============================================ COMENTARIOS Y CORAZONES ====
+   El mismo bloque debajo de una nota y de un dibujo (js/social.js). Se lee
+   siempre; escribir pide sesión, y entonces aparece la caja de texto.       */
+.social {
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid #efe2d6;
+  text-align: left;
+}
+.social[hidden] { display: none; }
+
+/* Quién dio corazón. Va arriba del todo, pegado al botón del corazón. */
+.social-corazones {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 14px;
+  font-size: .82rem;
+  color: var(--tinta-suave);
+}
+.social-corazones[hidden] { display: none; }
+.social-corazones b { color: #a8455f; font-weight: 600; }
+.social-corazones-icono { color: var(--acento); font-size: 1rem; line-height: 1; }
+
+.social-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+
+.social-item {
+  position: relative;
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 9px 11px;
+  border-radius: 4px 14px 14px 14px;
+  background: #fbf3ea;
+}
+/* Lo que escribe uno mismo se distingue de un vistazo. */
+.social-item--mio { background: #fdeef2; border-radius: 14px 4px 14px 14px; }
+
+.social-avatar {
+  flex: none;
+  display: grid; place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--acento);
+  color: #fff;
+  font-size: .78rem; font-weight: 600;
+  text-transform: uppercase;
+}
+.social-item--mio .social-avatar { background: #b07f9a; }
+
+.social-cuerpo { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.social-firma {
+  display: flex; align-items: baseline; gap: 7px;
+  font-size: .76rem; color: var(--tinta-suave);
+}
+.social-firma b { color: var(--tinta); font-size: .82rem; font-weight: 600; }
+.social-texto {
+  font-size: .92rem; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.social-borrar {
+  flex: none;
+  border: 0; background: none;
+  padding: 0 2px;
+  font-size: 1.1rem; line-height: 1;
+  color: #c99;
+  cursor: pointer;
+  opacity: .55;
+  transition: opacity .2s ease, color .2s ease;
+}
+.social-borrar:hover { opacity: 1; color: #b3261e; }
+
+.social-vacio {
+  margin: 0;
+  font-size: .82rem; font-style: italic;
+  color: var(--tinta-suave);
+}
+.social-vacio[hidden] { display: none; }
+
+/* ---- escribir ---- */
+.social-form {
+  display: flex; align-items: flex-end; gap: 8px;
+  margin: 12px 0 0;
+}
+.social-form[hidden] { display: none; }
+
+.social-entrada {
+  flex: 1; min-width: 0;
+  resize: none;
+  padding: 10px 13px;
+  border: 1px solid #e6d6c6;
+  border-radius: 16px;
+  background: #fffdf8;
+  font: inherit;
+  font-size: .9rem;
+  line-height: 1.4;
+  color: var(--tinta);
+  /* La altura la ajusta el JS según lo que se escriba, hasta 120px. */
+  max-height: 120px;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.social-entrada:focus {
+  outline: none;
+  border-color: var(--acento);
+  box-shadow: 0 0 0 3px rgba(216, 116, 143, .14);
+}
+
+.social-enviar {
+  flex: none;
+  display: grid; place-items: center;
+  width: 38px; height: 38px;
+  border: 0; border-radius: 50%;
+  background: var(--acento);
+  color: #fff;
+  cursor: pointer;
+  transition: background .2s ease, transform .15s ease;
+}
+.social-enviar:hover:not(:disabled) { background: var(--acento-osc); }
+.social-enviar:active:not(:disabled) { transform: scale(.92); }
+.social-enviar:disabled { opacity: .5; cursor: default; }
+
+.social-cerrado {
+  margin: 12px 0 0;
+  font-size: .8rem; font-style: italic;
+  color: var(--tinta-suave);
+}
+.social-cerrado[hidden] { display: none; }
+
 /* ----------------------------------------------------------- corazón ---- */
 .corazon {
   position: relative;   /* ancla del corazón que sube al pulsar */
@@ -1486,12 +1611,15 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 .corazon svg { fill: none; stroke: #d8748f; stroke-width: 1.8; transition: fill .3s ease; }
 .corazon:hover:not(:disabled) { background: #fdeef2; transform: translateY(-1px); }
 .corazon:active:not(:disabled) { transform: scale(.97); }
+/* Dado ya no significa bloqueado: ahora el corazón es tuyo y lo puedes
+   quitar. El cursor sigue siendo de pulsar. */
 .corazon.dado {
   background: #fdeef2;
   border-color: var(--acento);
-  cursor: default;
 }
 .corazon.dado svg { fill: var(--acento); stroke: var(--acento); }
+/* Sin sesión no se puede firmar nada: el botón queda apagado. */
+.corazon:disabled { opacity: .45; cursor: default; }
 
 /* Al darlo: un latido y un corazón que sube y se desvanece. */
 .corazon.latiendo svg { animation: latido .9s ease-out; }
