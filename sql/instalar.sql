@@ -6,9 +6,13 @@
 -- Se puede ejecutar las veces que haga falta: comprueba antes de cambiar
 -- nada, así que da igual si la base ya estaba a medio montar.
 --
--- ANTES DE EJECUTAR: crea tu usuario en Authentication → Users → Add user
--- (marca "Auto Confirm User"). Este script toma ese correo para darle a él, y
--- sólo a él, permiso de escribir en el jardín.
+-- ANTES DE EJECUTAR: crea los DOS usuarios del jardín en
+-- Authentication → Users → Add user, marcando "Auto Confirm User".
+--
+-- El script toma los dos correos MÁS ANTIGUOS y les da permiso de escribir:
+-- sembrar notas, comentar y dar corazón. Si hubiera algún usuario más viejo
+-- de una prueba anterior, bórralo antes o se quedará él con el sitio. Al
+-- final se imprime `la_casa`: ahí se ve quiénes quedaron dentro.
 -- ==========================================================================
 
 -- --------------------------------------------------------------------------
@@ -68,44 +72,63 @@ end $$;
 
 -- --------------------------------------------------------------------------
 -- 2. Quién puede hacer qué
---    · cualquiera LEE   -> ella entra por el enlace, sin cuenta
---    · sólo tú ESCRIBES -> se comprueba el correo, no basta con tener cuenta
+--    · cualquiera LEE     -> ella entra por el enlace, sin cuenta
+--    · la casa ESCRIBE    -> los dos usuarios del jardín, no basta con tener
+--                            cuenta en el proyecto
+--
+--    OJO: esto antes era "sólo el usuario más antiguo". Con dos personas en
+--    el jardín, sembrar con la otra cuenta daba
+--    "new row violates row-level security policy for table flores".
+--    Quién es "la casa" lo dice es_de_la_casa(), aquí debajo.
 -- --------------------------------------------------------------------------
 alter table public.flores enable row level security;
 
 drop policy if exists "lectura publica"      on public.flores;
 drop policy if exists "escritura del duenio" on public.flores;
 drop policy if exists "borrado del duenio"   on public.flores;
+drop policy if exists "siembra la casa"      on public.flores;
+drop policy if exists "arranca la casa"      on public.flores;
 
 create policy "lectura publica"
   on public.flores for select
   to anon, authenticated
   using (true);
 
--- El correo se toma del usuario más antiguo de Authentication → Users y se
--- graba dentro de la política. Si algún día creas otro usuario, vuelve a
--- ejecutar este script sólo si quieres cambiar de dueño.
+-- La función vive en la sección 2c, más abajo: se adelanta aquí para poder
+-- usarla ya en estas políticas. Crearla dos veces no molesta, es la misma.
+create or replace function public.es_de_la_casa()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public, auth
+as $$
+  select coalesce(
+    (auth.jwt() ->> 'email') in (select email from auth.users order by created_at limit 2),
+    false
+  );
+$$;
+
+revoke all on function public.es_de_la_casa() from public;
+grant execute on function public.es_de_la_casa() to authenticated;
+
 do $$
-declare
-  duenio text;
 begin
-  select email into duenio from auth.users order by created_at limit 1;
-
-  if duenio is null then
+  if not exists (select 1 from auth.users) then
     raise exception
-      'No hay ningún usuario todavía. Créalo en Authentication → Users y vuelve a ejecutar esto.';
+      'No hay ningún usuario todavía. Créalos en Authentication → Users y vuelve a ejecutar esto.';
   end if;
-
-  execute format(
-    'create policy "escritura del duenio" on public.flores for insert
-       to authenticated with check (auth.jwt() ->> ''email'' = %L)', duenio);
-
-  execute format(
-    'create policy "borrado del duenio" on public.flores for delete
-       to authenticated using (auth.jwt() ->> ''email'' = %L)', duenio);
-
-  raise notice 'Dueño del jardín: %', duenio;
 end $$;
+
+create policy "siembra la casa"
+  on public.flores for insert
+  to authenticated
+  with check (es_de_la_casa());
+
+create policy "arranca la casa"
+  on public.flores for delete
+  to authenticated
+  using (es_de_la_casa());
 
 -- --------------------------------------------------------------------------
 -- 2b. El corazón de ella
@@ -189,23 +212,10 @@ $$;
 revoke all on function public.dar_corazon_obra(uuid) from public;
 grant execute on function public.dar_corazon_obra(uuid) to anon, authenticated;
 
--- Las políticas no pueden mirar `auth.users` por su cuenta: esa tabla no la
--- lee un usuario normal. Esta función sí, y sólo contesta sí o no.
-create or replace function public.es_de_la_casa()
-returns boolean
-language sql
-security definer
-stable
-set search_path = public, auth
-as $$
-  select coalesce(
-    (auth.jwt() ->> 'email') in (select email from auth.users order by created_at limit 2),
-    false
-  );
-$$;
-
-revoke all on function public.es_de_la_casa() from public;
-grant execute on function public.es_de_la_casa() to authenticated;
+-- `es_de_la_casa()` —los dos usuarios más antiguos— se define arriba, en la
+-- sección 2, porque las políticas de `flores` ya la necesitan. Las políticas
+-- no pueden mirar `auth.users` por su cuenta: esa tabla no la lee un usuario
+-- normal. La función sí, y sólo contesta sí o no.
 
 alter table public.obras enable row level security;
 
@@ -370,31 +380,29 @@ on conflict (id) do update
       file_size_limit = 8388608,
       allowed_mime_types = array['image/*'];
 
+-- Mismo arreglo que en la tabla flores: las fotos las sube cualquiera de los
+-- dos, no sólo el usuario más antiguo. Si no, sembrar con foto desde la otra
+-- cuenta fallaba al subir el archivo.
 drop policy if exists "fotos lectura publica"  on storage.objects;
 drop policy if exists "fotos suben del duenio" on storage.objects;
 drop policy if exists "fotos borra el duenio"  on storage.objects;
+drop policy if exists "fotos las sube la casa" on storage.objects;
+drop policy if exists "fotos las quita la casa" on storage.objects;
 
 create policy "fotos lectura publica"
   on storage.objects for select
   to anon, authenticated
   using (bucket_id = 'notas');
 
-do $$
-declare
-  duenio text;
-begin
-  select email into duenio from auth.users order by created_at limit 1;
+create policy "fotos las sube la casa"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'notas' and es_de_la_casa());
 
-  execute format(
-    'create policy "fotos suben del duenio" on storage.objects for insert
-       to authenticated with check (bucket_id = ''notas''
-         and auth.jwt() ->> ''email'' = %L)', duenio);
-
-  execute format(
-    'create policy "fotos borra el duenio" on storage.objects for delete
-       to authenticated using (bucket_id = ''notas''
-         and auth.jwt() ->> ''email'' = %L)', duenio);
-end $$;
+create policy "fotos las quita la casa"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'notas' and es_de_la_casa());
 
 -- --------------------------------------------------------------------------
 -- 3b. Los dibujos de la galería
@@ -458,7 +466,10 @@ select
   (select count(*) from pg_policies
     where schemaname = 'public'
       and tablename in ('comentarios', 'corazones'))                    as politicas_social,
+  -- MIRA ESTO: son los dos correos que pueden sembrar, comentar y dar
+  -- corazón. Si aquí no salen los dos que esperas, es que hay algún usuario
+  -- más antiguo de por medio: bórralo en Authentication → Users.
   (select string_agg(email, ', ' order by created_at)
      from (select email, created_at from auth.users
             order by created_at limit 2) c)                             as la_casa,
-  (select email from auth.users order by created_at limit 1)            as duenio;
+  (select count(*) from auth.users)                                     as usuarios_totales;
