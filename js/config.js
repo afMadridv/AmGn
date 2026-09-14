@@ -27,6 +27,12 @@ window.CONFIG = {
     'patico@gmail.com': 'Patico'
   },
 
+  // Quién siembra. Los dos comentan y dan corazón, pero las flores las planta
+  // uno solo. Esto sólo decide si se le enseña el portal de sembrar: quien
+  // manda de verdad es la política de la base (es_el_jardinero() en
+  // sql/instalar.sql). Si lo cambias aquí, cámbialo también allí.
+  JARDINERO: 'pato@gmail.com',
+
   // Playlist de Spotify que suena de fondo. Es el id que va en la URL:
   // open.spotify.com/playlist/<ESTO>. Se lee en vivo: si añades canciones,
   // aparecen solas. Déjalo vacío para quitar la música.

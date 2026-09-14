@@ -682,9 +682,24 @@
   el.btnQuitarFoto.addEventListener('click', quitarFoto);
 
   /* --------------------------------------------------------- portal: abrir */
+  /* Sembrar es de uno solo. Al otro no se le enseña el formulario: podría
+     rellenarlo entero y al darle a Sembrar la base lo rechazaría con un
+     "new row violates row-level security policy". Quien manda es la política
+     es_el_jardinero() de sql/instalar.sql; esto sólo evita el paseo en balde. */
+  const esElJardinero = async () => {
+    const yo = await Datos.quienSoy();
+    return Boolean(yo && CFG.JARDINERO &&
+      yo.correo.toLowerCase() === String(CFG.JARDINERO).toLowerCase());
+  };
+
   el.portal.addEventListener('click', async () => {
-    if (await Datos.sesion()) { abrirPanel(); }
-    else { el.loginError.hidden = true; abrir(el.modalLogin); }
+    if (await esElJardinero()) { abrirPanel(); return; }
+    if (await Datos.sesion()) {
+      aviso('El jardín lo siembra ' + (CFG.NOMBRES || {})[CFG.JARDINERO] + '.');
+      return;
+    }
+    el.loginError.hidden = true;
+    abrir(el.modalLogin);
   });
 
   el.formLogin.addEventListener('submit', async e => {
@@ -693,9 +708,19 @@
     el.loginError.hidden = true;
     try {
       await Datos.entrar(el.loginUser.value.trim(), el.loginPass.value);
+      // Quien firma acaba de cambiar: los comentarios abiertos deben saberlo.
+      if (window.Social) Social.olvidarSesion();
       el.formLogin.reset();
       cerrar(el.modalLogin);
-      setTimeout(abrirPanel, 260);
+
+      if (await esElJardinero()) {
+        setTimeout(abrirPanel, 260);
+      } else {
+        // Entró bien, pero por aquí no se siembra. La sesión queda abierta:
+        // sirve para comentar y dar corazón.
+        aviso('Ya puedes comentar. El jardín lo siembra ' +
+              (CFG.NOMBRES || {})[CFG.JARDINERO] + '.');
+      }
     } catch (err) {
       el.loginError.textContent = err.message || 'No pude entrar';
       el.loginError.hidden = false;

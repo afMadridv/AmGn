@@ -72,45 +72,47 @@ end $$;
 
 -- --------------------------------------------------------------------------
 -- 2. Quién puede hacer qué
---    · cualquiera LEE     -> ella entra por el enlace, sin cuenta
---    · la casa ESCRIBE    -> los dos usuarios del jardín, no basta con tener
---                            cuenta en el proyecto
+--    · cualquiera LEE      -> ella entra por el enlace, sin cuenta
+--    · el JARDINERO siembra -> sembrar y arrancar notas es de uno solo
+--    · la CASA comenta      -> los dos, en las notas y en los dibujos (2c y 2d)
 --
---    OJO: esto antes era "sólo el usuario más antiguo". Con dos personas en
---    el jardín, sembrar con la otra cuenta daba
---    "new row violates row-level security policy for table flores".
---    Quién es "la casa" lo dice es_de_la_casa(), aquí debajo.
+--    Son dos permisos distintos a propósito: los dos escriben comentarios y
+--    dan corazón, pero las flores las planta uno.
 -- --------------------------------------------------------------------------
 alter table public.flores enable row level security;
 
-drop policy if exists "lectura publica"      on public.flores;
-drop policy if exists "escritura del duenio" on public.flores;
-drop policy if exists "borrado del duenio"   on public.flores;
-drop policy if exists "siembra la casa"      on public.flores;
-drop policy if exists "arranca la casa"      on public.flores;
+drop policy if exists "lectura publica"       on public.flores;
+drop policy if exists "escritura del duenio"  on public.flores;
+drop policy if exists "borrado del duenio"    on public.flores;
+drop policy if exists "siembra la casa"       on public.flores;
+drop policy if exists "arranca la casa"       on public.flores;
+drop policy if exists "siembra el jardinero"  on public.flores;
+drop policy if exists "arranca el jardinero"  on public.flores;
 
 create policy "lectura publica"
   on public.flores for select
   to anon, authenticated
   using (true);
 
--- La función vive en la sección 2c, más abajo: se adelanta aquí para poder
--- usarla ya en estas políticas. Crearla dos veces no molesta, es la misma.
-create or replace function public.es_de_la_casa()
+-- ¿QUIERES CAMBIAR QUIÉN SIEMBRA? Es el único sitio donde se dice: cambia el
+-- correo de aquí y vuelve a ejecutar el script.
+--
+-- Va por correo y no por "el usuario más antiguo" a propósito: así no depende
+-- del orden en que se crearon las cuentas, que es fácil de romper sin darse
+-- cuenta al borrar y recrear un usuario.
+create or replace function public.es_el_jardinero()
 returns boolean
 language sql
-security definer
 stable
-set search_path = public, auth
 as $$
-  select coalesce(
-    (auth.jwt() ->> 'email') in (select email from auth.users order by created_at limit 2),
-    false
-  );
+  select coalesce(auth.jwt() ->> 'email' = 'pato@gmail.com', false);
 $$;
 
-revoke all on function public.es_de_la_casa() from public;
-grant execute on function public.es_de_la_casa() to authenticated;
+revoke all on function public.es_el_jardinero() from public;
+grant execute on function public.es_el_jardinero() to authenticated;
+
+-- `es_de_la_casa()` —los dos— se define en la sección 2c, más abajo: la usan
+-- los dibujos y los comentarios, no las flores.
 
 do $$
 begin
@@ -120,15 +122,15 @@ begin
   end if;
 end $$;
 
-create policy "siembra la casa"
+create policy "siembra el jardinero"
   on public.flores for insert
   to authenticated
-  with check (es_de_la_casa());
+  with check (es_el_jardinero());
 
-create policy "arranca la casa"
+create policy "arranca el jardinero"
   on public.flores for delete
   to authenticated
-  using (es_de_la_casa());
+  using (es_el_jardinero());
 
 -- --------------------------------------------------------------------------
 -- 2b. El corazón de ella
@@ -212,10 +214,27 @@ $$;
 revoke all on function public.dar_corazon_obra(uuid) from public;
 grant execute on function public.dar_corazon_obra(uuid) to anon, authenticated;
 
--- `es_de_la_casa()` —los dos usuarios más antiguos— se define arriba, en la
--- sección 2, porque las políticas de `flores` ya la necesitan. Las políticas
--- no pueden mirar `auth.users` por su cuenta: esa tabla no la lee un usuario
--- normal. La función sí, y sólo contesta sí o no.
+-- Las políticas no pueden mirar `auth.users` por su cuenta: esa tabla no la
+-- lee un usuario normal. Esta función sí, y sólo contesta sí o no.
+--
+-- "La casa" son los dos usuarios más antiguos: los que comentan y dan
+-- corazón. Sembrar flores es otra cosa y va por es_el_jardinero(), en la
+-- sección 2.
+create or replace function public.es_de_la_casa()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public, auth
+as $$
+  select coalesce(
+    (auth.jwt() ->> 'email') in (select email from auth.users order by created_at limit 2),
+    false
+  );
+$$;
+
+revoke all on function public.es_de_la_casa() from public;
+grant execute on function public.es_de_la_casa() to authenticated;
 
 alter table public.obras enable row level security;
 
@@ -380,29 +399,31 @@ on conflict (id) do update
       file_size_limit = 8388608,
       allowed_mime_types = array['image/*'];
 
--- Mismo arreglo que en la tabla flores: las fotos las sube cualquiera de los
--- dos, no sólo el usuario más antiguo. Si no, sembrar con foto desde la otra
--- cuenta fallaba al subir el archivo.
-drop policy if exists "fotos lectura publica"  on storage.objects;
-drop policy if exists "fotos suben del duenio" on storage.objects;
-drop policy if exists "fotos borra el duenio"  on storage.objects;
-drop policy if exists "fotos las sube la casa" on storage.objects;
+-- Estas fotos van dentro de las notas, así que las sube quien siembra: el
+-- mismo permiso que la tabla flores. Si aquí pusiera es_de_la_casa(), el otro
+-- podría subir archivos al bucket sin poder crear la nota que los usa.
+drop policy if exists "fotos lectura publica"   on storage.objects;
+drop policy if exists "fotos suben del duenio"  on storage.objects;
+drop policy if exists "fotos borra el duenio"   on storage.objects;
+drop policy if exists "fotos las sube la casa"  on storage.objects;
 drop policy if exists "fotos las quita la casa" on storage.objects;
+drop policy if exists "fotos las sube el jardinero"  on storage.objects;
+drop policy if exists "fotos las quita el jardinero" on storage.objects;
 
 create policy "fotos lectura publica"
   on storage.objects for select
   to anon, authenticated
   using (bucket_id = 'notas');
 
-create policy "fotos las sube la casa"
+create policy "fotos las sube el jardinero"
   on storage.objects for insert
   to authenticated
-  with check (bucket_id = 'notas' and es_de_la_casa());
+  with check (bucket_id = 'notas' and es_el_jardinero());
 
-create policy "fotos las quita la casa"
+create policy "fotos las quita el jardinero"
   on storage.objects for delete
   to authenticated
-  using (bucket_id = 'notas' and es_de_la_casa());
+  using (bucket_id = 'notas' and es_el_jardinero());
 
 -- --------------------------------------------------------------------------
 -- 3b. Los dibujos de la galería
