@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -60 120 120">
+  <!-- La cara de la luna, encima del degradado del disco de la luna en el CSS.
+       (Un comentario XML no admite dos guiones seguidos: por eso no va aquí
+       el nombre de la clase, que el navegador tomaría como SVG roto.)
+       Mares como manchas irregulares —los círculos perfectos no se leían como
+       luna—, cráteres con el borde encendido del lado de la luz, y la sombra
+       de la fase gibosa difuminada en el terminador. -->
+  <defs>
+    <clipPath id="c"><circle r="60"/></clipPath>
+    <filter id="b" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5.4"/>
+    </filter>
+  </defs>
+  <g clip-path="url(#c)">
+    <path d="M-30,-10 Q-32,-24 -18,-28 Q-4,-30 0,-18 Q4,-6 -6,2 Q-16,8 -26,2 Q-31,-2 -30,-10 Z" fill="#a9a28e" opacity=".5"/>
+    <path d="M2,0 Q4,-10 16,-8 Q28,-6 27,6 Q26,18 14,20 Q2,20 0,10 Q-1,4 2,0 Z" fill="#a9a28e" opacity=".42"/>
+    <path d="M-16,20 Q-16,12 -6,12 Q4,12 5,20 Q6,30 -4,31 Q-14,31 -16,24 Z" fill="#a9a28e" opacity=".38"/>
+    <g fill="#c4bca6" opacity=".6">
+      <circle cx="-22" cy="-18" r="6"/><circle cx="18" cy="22" r="8"/><circle cx="-8" cy="28" r="4.5"/>
+      <circle cx="26" cy="-14" r="4"/><circle cx="-30" cy="12" r="3.5"/><circle cx="4" cy="-34" r="3"/>
+    </g>
+    <!-- La luz llega por la izquierda (la sombra de la fase está a la derecha):
+         la pared izquierda de cada cráter queda en sombra y la derecha,
+         de cara al sol, se enciende. -->
+    <g fill="#8f8874" opacity=".45">
+      <path d="M-22.0,-24.0 A6.00,6.00 0 0 0 -22.0,-12.0 A3.72,6.00 0 0 1 -22.0,-24.0 Z"/>
+      <path d="M18.0,14.0 A8.00,8.00 0 0 0 18.0,30.0 A4.96,8.00 0 0 1 18.0,14.0 Z"/>
+      <path d="M-8.0,23.5 A4.50,4.50 0 0 0 -8.0,32.5 A2.79,4.50 0 0 1 -8.0,23.5 Z"/>
+      <path d="M26.0,-18.0 A4.00,4.00 0 0 0 26.0,-10.0 A2.48,4.00 0 0 1 26.0,-18.0 Z"/>
+      <path d="M-30.0,8.5 A3.50,3.50 0 0 0 -30.0,15.5 A2.17,3.50 0 0 1 -30.0,8.5 Z"/>
+      <path d="M4.0,-37.0 A3.00,3.00 0 0 0 4.0,-31.0 A1.86,3.00 0 0 1 4.0,-37.0 Z"/>
+    </g>
+    <g fill="none" stroke="#fffdf2" stroke-width="1.1" stroke-linecap="round" opacity=".7">
+      <path d="M-20.6,-23.3 A5.45,5.45 0 0 1 -20.6,-12.7"/>
+      <path d="M19.9,14.8 A7.45,7.45 0 0 1 19.9,29.2"/>
+      <path d="M-7.0,24.2 A3.95,3.95 0 0 1 -7.0,31.8"/>
+      <path d="M26.9,-17.3 A3.45,3.45 0 0 1 26.9,-10.7"/>
+      <path d="M-29.2,9.2 A2.95,2.95 0 0 1 -29.2,14.8"/>
+      <path d="M4.6,-36.4 A2.45,2.45 0 0 1 4.6,-31.6"/>
+    </g>
+    <circle cx="87" cy="6" r="73" fill="#0c1536" opacity=".6" filter="url(#b)"/>
+  </g>
+</svg>
