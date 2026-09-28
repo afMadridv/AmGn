@@ -369,9 +369,11 @@ button { font-family: inherit; color: inherit; }
   background: linear-gradient(180deg,
     #4a6ba8 0%, #8f8fc4 24%, #dba0ae 52%, #f6c69b 74%, #ffe3bd 100%);
 }
+/* El horizonte pasa a crema: la luz del día se calienta al bajar, en vez de
+   terminar en el mismo verde de las colinas y que no se note dónde empiezan. */
 .capa-cielo[data-fase="dia"] {
   background: linear-gradient(180deg,
-    #7cc3e8 0%, #a9dcef 42%, #d3f0e6 76%, var(--cielo-bajo) 100%);
+    #5eaede 0%, #9fd3ee 45%, #d8efe9 78%, #fbeccb 100%);
 }
 .capa-cielo[data-fase="atardecer"] {
   background: linear-gradient(180deg,
@@ -406,6 +408,63 @@ button { font-family: inherit; color: inherit; }
   animation-iteration-count: infinite;
 }
 @keyframes titilar { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+
+/* La vía láctea: una banda en diagonal con polvo y una franja oscura. Todo va
+   en un solo nodo y sin animación; el polvo es ruido SVG (feTurbulence) que
+   el navegador pinta una vez. La máscara la desvanece hacia los bordes: con
+   el borde duro se leía como un haz de luz, no como una galaxia. */
+.via-lactea {
+  position: absolute;
+  left: -30%; top: 20%;
+  width: 160%; height: 40%;
+  rotate: -28deg;
+  pointer-events: none;
+  background:
+    /* El lienzo del ruido (1000×100) tiene la misma forma que la banda: si
+       no, al estirarlo las motas se alargaban en vetas y la vía láctea se
+       leía como rayos de luz. */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.018' numOctaves='4' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .86 0 0 0 0 .88 0 0 0 0 1 0 0 0 1.3 -.55'/%3E%3CfeGaussianBlur stdDeviation='2.2'/%3E%3C/filter%3E%3Cfilter id='d' x='-10%25' y='-100%25' width='120%25' height='300%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.03' numOctaves='2' seed='9' result='t'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='t' scale='12'/%3E%3CfeGaussianBlur stdDeviation='3'/%3E%3C/filter%3E%3Crect width='1000' height='100' filter='url(%23p)'/%3E%3Cellipse cx='500' cy='52' rx='420' ry='4' fill='%23050b24' opacity='.4' filter='url(%23d)'/%3E%3C/svg%3E")
+      center / 100% 100% no-repeat,
+    radial-gradient(ellipse at center, rgba(201, 212, 255, .24) 0%, rgba(154, 169, 230, .08) 45%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 68%);
+          mask-image: radial-gradient(ellipse at center, #000 20%, transparent 68%);
+  opacity: .6;
+}
+
+/* Las siete estrellas grandes: un punto con halo y un destello en cruz, que
+   son dos líneas finas que se desvanecen hacia las puntas. */
+.destello-estrella {
+  position: absolute;
+  width: 16px; height: 16px;
+  translate: -50% -50%;
+  scale: var(--tam, 1);
+  pointer-events: none;
+  background:
+    radial-gradient(circle, #fff 0 1.4px, rgba(223, 232, 255, .55) 2.2px, transparent 7px),
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, .95) 50%, transparent) center / 100% 1.2px no-repeat,
+    linear-gradient(0deg,  transparent, rgba(255, 255, 255, .95) 50%, transparent) center / 1.2px 100% no-repeat;
+  animation: titilar-destello var(--t, 3s) ease-in-out infinite var(--d, 0s);
+}
+@keyframes titilar-destello { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+
+/* La estrella fugaz: escondida casi todo el ciclo, cruza en medio segundo.
+   Sólo se anima opacity y translate. */
+.fugaz {
+  position: absolute;
+  left: 12%; top: 14%;
+  width: 120px; height: 1.6px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .95));
+  rotate: 24deg;
+  opacity: 0;
+  pointer-events: none;
+  animation: fugaz 13s ease-in infinite 5s;
+}
+@keyframes fugaz {
+  0%        { opacity: 0; translate: 0 0; }
+  1%        { opacity: 1; }
+  5%, 100%  { opacity: 0; translate: 190px 84px; }
+}
 
 /* ------------------------------------------------------------ sol y luna - */
 .astro {
@@ -462,33 +521,53 @@ button { font-family: inherit; color: inherit; }
 .crater.c3 { width: 11%; height: 11%; top: 22%; left: 60%; }
 .crater.c4 { width: 9%;  height: 9%;  top: 66%; left: 28%; }
 
-/* ---------------------------------------------------------------- nubes -- */
+/* ---------------------------------------------------------------- nubes --
+   Un cúmulo de verdad: base plana y en sombra, copete iluminado. Antes era
+   una píldora con dos bolas encima y un solo color.
+
+   La silueta es una MÁSCARA, no una imagen: así el color sigue saliendo de
+   --nube y --nube-bajo, y la luz de cada hora la tiñe igual que antes. El
+   brillo del copete es el ::before, con su propia máscara, y queda dentro de
+   la silueta porque la máscara del padre también lo recorta.
+
+   Las dos variables se registran con @property para que el cambio de hora se
+   funda poco a poco: un degradado normal no se puede animar y saltaría. */
+@property --nube      { syntax: '<color>'; inherits: true; initial-value: #ffffff; }
+@property --nube-bajo { syntax: '<color>'; inherits: true; initial-value: #d6dfec; }
+
 .nube {
   position: absolute;
-  height: clamp(20px, 4.6vw, 38px);
-  background: var(--nube, #fff);
-  border-radius: 999px;
-  opacity: .92;
-  transition: background 2.4s ease, opacity 2.4s ease;
+  aspect-ratio: 138 / 72;
+  background: linear-gradient(180deg, var(--nube) 0%, var(--nube) 42%, var(--nube-bajo) 100%);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-69 -46 138 72'%3E%3Cg%3E%3Ccircle cx='-40' cy='7' r='19'/%3E%3Ccircle cx='-19' cy='-6' r='25'/%3E%3Ccircle cx='7' cy='-15' r='30'/%3E%3Ccircle cx='33' cy='-5' r='23'/%3E%3Ccircle cx='52' cy='7' r='16'/%3E%3Ccircle cx='-56' cy='13' r='12'/%3E%3Crect x='-64' y='7' width='130' height='17' rx='8.5'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-69 -46 138 72'%3E%3Cg%3E%3Ccircle cx='-40' cy='7' r='19'/%3E%3Ccircle cx='-19' cy='-6' r='25'/%3E%3Ccircle cx='7' cy='-15' r='30'/%3E%3Ccircle cx='33' cy='-5' r='23'/%3E%3Ccircle cx='52' cy='7' r='16'/%3E%3Ccircle cx='-56' cy='13' r='12'/%3E%3Crect x='-64' y='7' width='130' height='17' rx='8.5'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  opacity: .95;
+  transition: --nube 2.4s ease, --nube-bajo 2.4s ease, opacity 2.4s ease;
 }
-.nube::before, .nube::after {
-  content: ''; position: absolute; bottom: 0;
-  background: inherit; border-radius: 50%;
+.nube::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: #fff;
+  opacity: var(--nube-luz, .8);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-69 -46 138 72'%3E%3Ccircle cx='-26.5' cy='-14.5' r='10.5'/%3E%3Ccircle cx='-2' cy='-25.2' r='12.6'/%3E%3Ccircle cx='26.1' cy='-12.8' r='9.7'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-69 -46 138 72'%3E%3Ccircle cx='-26.5' cy='-14.5' r='10.5'/%3E%3Ccircle cx='-2' cy='-25.2' r='12.6'/%3E%3Ccircle cx='26.1' cy='-12.8' r='9.7'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  transition: opacity 2.4s ease;
 }
-.nube::before { width: 62%; aspect-ratio: 1; left: 6%; }
-.nube::after  { width: 44%; aspect-ratio: 1; right: 8%; }
 
-.nube--1 { width: clamp(80px, 22vw, 170px); top: 14%; animation: pasar 46s linear infinite; }
-.nube--2 { width: clamp(60px, 16vw, 130px); top: 28%; animation: pasar 64s linear infinite -18s; opacity: .72; }
-.nube--3 { width: clamp(96px, 26vw, 200px); top: 5%;  animation: pasar 88s linear infinite -40s; opacity: .55; }
-.nube--4 { width: clamp(52px, 13vw, 110px); top: 21%; animation: pasar 72s linear infinite -55s; opacity: .6; }
+/* Un poco más estrechas que antes: el cúmulo es más alto que la píldora y,
+   con el mismo ancho, se comía el cielo. */
+.nube--1 { width: clamp(70px, 19vw, 150px); top: 12%; animation: pasar 46s linear infinite; }
+.nube--2 { width: clamp(52px, 14vw, 112px); top: 27%; animation: pasar 64s linear infinite -18s; opacity: .74; }
+.nube--3 { width: clamp(84px, 22vw, 172px); top: 3%;  animation: pasar 88s linear infinite -40s; opacity: .56; }
+.nube--4 { width: clamp(46px, 11vw, 94px);  top: 20%; animation: pasar 72s linear infinite -55s; opacity: .62; }
 @keyframes pasar { from { left: -34%; } to { left: 116%; } }
 
-/* Las nubes se tiñen con la luz de la hora. */
-.jardin[data-momento="dia"]       .nube { --nube: #ffffff; }
-.jardin[data-momento="amanecer"]  .nube { --nube: #ffd9d2; }
-.jardin[data-momento="atardecer"] .nube { --nube: #f7b48c; }
-.jardin[data-momento="noche"]     .nube { --nube: #2f3c70; opacity: .5; }
+/* Las nubes se tiñen con la luz de la hora: arriba --nube, la base en
+   sombra --nube-bajo, y --nube-luz lo que brilla el copete. */
+.jardin[data-momento="dia"]       .nube { --nube: #ffffff; --nube-bajo: #d6dfec; --nube-luz: .8; }
+.jardin[data-momento="amanecer"]  .nube { --nube: #ffe3dc; --nube-bajo: #e9b3bd; --nube-luz: .6; }
+.jardin[data-momento="atardecer"] .nube { --nube: #fbc49e; --nube-bajo: #d9876f; --nube-luz: .5; }
+.jardin[data-momento="noche"]     .nube { --nube: #34427a; --nube-bajo: #1d2752; --nube-luz: .12; opacity: .5; }
 
 /* --------------------------------------------------------------- colinas */
 /* El campo verde: dos lomas con luz arriba, sombra al pie y una textura de
@@ -592,13 +671,30 @@ button { font-family: inherit; color: inherit; }
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='30' viewBox='0 0 92 30'%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cpath d='M4,30 C3,22 5,16 9,11' stroke='%233f7c3f' stroke-width='2'/%3E%3Cpath d='M11,30 C12,24 10,18 8,14' stroke='%234c8a44' stroke-width='1.8'/%3E%3Cpath d='M19,30 C18,21 20,13 24,7' stroke='%23417f40' stroke-width='2.1'/%3E%3Cpath d='M27,30 C28,24 27,19 25,15' stroke='%233f7c3f' stroke-width='1.7'/%3E%3Cpath d='M34,30 C33,23 35,16 33,10' stroke='%234c8a44' stroke-width='2'/%3E%3Cpath d='M42,30 C43,22 41,15 44,9' stroke='%23417f40' stroke-width='1.9'/%3E%3Cpath d='M50,30 C49,24 51,19 54,14' stroke='%233f7c3f' stroke-width='1.8'/%3E%3Cpath d='M58,30 C59,21 57,14 55,8' stroke='%234c8a44' stroke-width='2.1'/%3E%3Cpath d='M66,30 C65,23 67,17 70,12' stroke='%23417f40' stroke-width='1.8'/%3E%3Cpath d='M74,30 C75,24 73,18 71,13' stroke='%233f7c3f' stroke-width='2'/%3E%3Cpath d='M82,30 C81,22 83,14 86,9' stroke='%234c8a44' stroke-width='1.9'/%3E%3Cpath d='M89,30 C90,25 89,20 87,16' stroke='%23417f40' stroke-width='1.7'/%3E%3C/g%3E%3C/svg%3E")
     left bottom / 92px 30px repeat-x;
 }
-/* La fila de delante se mece; sólo ella, para que el fondo dé profundidad. */
+/* Fila del medio: un verde intermedio entre la de atrás y la de delante. Con
+   sólo dos filas el salto de tono se notaba como un escalón. Va quieta. */
 .pasto::before {
   content: '';
-  position: absolute; inset: 4px 0 0;
+  position: absolute; inset: 2px 0 0;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='76' height='26' viewBox='0 0 76 26'%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cpath d='M3,26 C2,19 4,13 8,8' stroke='%2374b56a' stroke-width='2'/%3E%3Cpath d='M10,26 C11,21 9,16 7,12' stroke='%2382c66f' stroke-width='1.7'/%3E%3Cpath d='M17,26 C16,18 18,11 21,6' stroke='%236aab5e' stroke-width='2.1'/%3E%3Cpath d='M25,26 C26,20 24,15 22,11' stroke='%2374b56a' stroke-width='1.8'/%3E%3Cpath d='M32,26 C31,19 33,12 31,7' stroke='%2382c66f' stroke-width='2'/%3E%3Cpath d='M40,26 C41,19 39,13 42,8' stroke='%236aab5e' stroke-width='1.9'/%3E%3Cpath d='M48,26 C47,21 49,16 52,11' stroke='%2374b56a' stroke-width='1.7'/%3E%3Cpath d='M55,26 C56,18 54,12 52,6' stroke='%2382c66f' stroke-width='2.1'/%3E%3Cpath d='M63,26 C62,20 64,14 67,10' stroke='%236aab5e' stroke-width='1.8'/%3E%3Cpath d='M71,26 C72,21 70,15 68,11' stroke='%2374b56a' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E")
-    left bottom / 76px 26px repeat-x;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='83' height='28' viewBox='0 0 83 28'%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cpath d='M3,28 C2,21 4,15 8,10' stroke='%2358a045' stroke-width='1.9'/%3E%3Cpath d='M10,28 C11,22 9,17 7,13' stroke='%235fa84b' stroke-width='1.7'/%3E%3Cpath d='M17,28 C16,20 18,13 21,8' stroke='%234f943f' stroke-width='2'/%3E%3Cpath d='M24,28 C25,22 24,17 22,13' stroke='%2358a045' stroke-width='1.8'/%3E%3Cpath d='M31,28 C30,21 32,14 30,9' stroke='%235fa84b' stroke-width='2'/%3E%3Cpath d='M38,28 C39,21 37,14 40,9' stroke='%234f943f' stroke-width='1.9'/%3E%3Cpath d='M46,28 C45,22 47,17 50,12' stroke='%2358a045' stroke-width='1.7'/%3E%3Cpath d='M53,28 C54,20 52,13 50,7' stroke='%235fa84b' stroke-width='2'/%3E%3Cpath d='M61,28 C60,22 62,16 65,11' stroke='%234f943f' stroke-width='1.8'/%3E%3Cpath d='M68,28 C69,22 67,17 65,12' stroke='%2358a045' stroke-width='1.9'/%3E%3Cpath d='M75,28 C74,21 76,14 79,10' stroke='%235fa84b' stroke-width='1.8'/%3E%3Cpath d='M81,28 C82,23 81,18 79,14' stroke='%234f943f' stroke-width='1.6'/%3E%3C/g%3E%3C/svg%3E")
+    left bottom / 83px 28px repeat-x;
+}
+
+/* La fila de delante se mece; sólo ella, para que el fondo dé profundidad.
+   Las briznas alternas llevan la punta amarillenta (degradado url(#g)), que
+   es donde les da el sol. Encima, una loseta de 397px con dos margaritas y
+   dos tréboles de tamaños distintos. Con 211px y tres margaritas salían cada
+   70px, todas a la misma altura, y el borde parecía una cenefa. 397 es primo:
+   no se repite a la vez que las briznas (76, 83 y 92). */
+.pasto::after {
+  content: '';
+  position: absolute; inset: 6px 0 0;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='397' height='26' viewBox='0 0 397 26'%3E%3Cdefs%3E%3Cg id='m'%3E%3Cpath d='M0,1 L0,11' stroke='%234e8a3a' stroke-width='1'/%3E%3Cg fill='%23fffdf7' stroke='%23e6ddd0' stroke-width='.4'%3E%3Cellipse cy='-3' rx='1.3' ry='2.8'/%3E%3Cellipse cy='-3' rx='1.3' ry='2.8' transform='rotate(60)'/%3E%3Cellipse cy='-3' rx='1.3' ry='2.8' transform='rotate(120)'/%3E%3Cellipse cy='-3' rx='1.3' ry='2.8' transform='rotate(180)'/%3E%3Cellipse cy='-3' rx='1.3' ry='2.8' transform='rotate(240)'/%3E%3Cellipse cy='-3' rx='1.3' ry='2.8' transform='rotate(300)'/%3E%3C/g%3E%3Ccircle r='1.4' fill='%23f3b72a'/%3E%3C/g%3E%3Cg id='t' fill='%235aa04a'%3E%3Cpath id='h' d='M0,0 C-3,-2 -3.4,-6 0,-5.2 C3.4,-6 3,-2 0,0 Z'/%3E%3Cuse href='%23h' transform='rotate(120)'/%3E%3Cuse href='%23h' transform='rotate(240)'/%3E%3Ccircle r='.6' fill='%238cc96a'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23m' transform='translate(46 15)'/%3E%3Cuse href='%23m' transform='translate(268 13) scale(.78)'/%3E%3Cuse href='%23t' transform='translate(151 23)'/%3E%3Cuse href='%23t' transform='translate(336 22) scale(.85)'/%3E%3C/svg%3E")
+      left bottom / 397px 26px repeat-x,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='76' height='26' viewBox='0 0 76 26'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='0' y2='0'%3E%3Cstop offset='0' stop-color='%236aab5e'/%3E%3Cstop offset='1' stop-color='%23bcdd7e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='none' stroke-linecap='round'%3E%3Cpath d='M3,26 C2,19 4,13 8,8' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M10,26 C11,21 9,16 7,12' stroke='%238cc96a' stroke-width='1.7'/%3E%3Cpath d='M17,26 C16,18 18,11 21,6' stroke='url(%23g)' stroke-width='2.1'/%3E%3Cpath d='M25,26 C26,20 24,15 22,11' stroke='%237cbc5c' stroke-width='1.8'/%3E%3Cpath d='M32,26 C31,19 33,12 31,7' stroke='url(%23g)' stroke-width='2'/%3E%3Cpath d='M40,26 C41,19 39,13 42,8' stroke='%238cc96a' stroke-width='1.9'/%3E%3Cpath d='M48,26 C47,21 49,16 52,11' stroke='url(%23g)' stroke-width='1.7'/%3E%3Cpath d='M55,26 C56,18 54,12 52,6' stroke='%237cbc5c' stroke-width='2.1'/%3E%3Cpath d='M63,26 C62,20 64,14 67,10' stroke='url(%23g)' stroke-width='1.8'/%3E%3Cpath d='M71,26 C72,21 70,15 68,11' stroke='%238cc96a' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E")
+      left bottom / 76px 26px repeat-x;
   animation: brisa 4s ease-in-out infinite;
   transform-origin: bottom center;
 }
@@ -609,6 +705,9 @@ button { font-family: inherit; color: inherit; }
 .surco {
   position: absolute; inset: 0;
   background:
+    /* sombra justo debajo de la hierba, donde las briznas se meten en la
+       tierra: sin ella la hierba parecía pegada encima */
+    linear-gradient(180deg, rgba(30, 50, 20, .34) 0, rgba(30, 50, 20, 0) 16px),
     /* grano fino (SVG feTurbulence): tierra de verdad, no pintura lisa.
        El alfa sale del canal R del ruido, así el granulado es irregular. */
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0 0 0 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)' opacity='.3'/%3E%3C/svg%3E")
@@ -850,27 +949,42 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   to   { transform: scaleY(.55) scaleX(.92); }
 }
 
-/* La luciérnaga late en vez de aletear: tres halos superpuestos para que la
-   luz se vea de verdad contra el cielo de noche. */
-.bicho--luciernaga {
-  filter: drop-shadow(0 0 6px rgba(255, 249, 160, 1))
-          drop-shadow(0 0 16px rgba(246, 226, 90, .85))
-          drop-shadow(0 0 34px rgba(214, 190, 60, .5));
-  animation-name: cruzar, brillo-farol;
-  animation-duration: var(--vuelo, 22s), 2.4s;
-  animation-timing-function: linear, ease-in-out;
-  animation-iteration-count: infinite, infinite;
-  animation-delay: var(--retraso, 0s), 0s;
+/* La luciérnaga destella en vez de aletear.
+   Antes el brillo eran tres drop-shadow encadenados en cada bicho: un filtro
+   triple recalculándose en cada fotograma mientras cruza la pantalla. Ahora
+   el brillo va pintado dentro del SVG y el halo grande es un degradado en un
+   pseudo-elemento: los dos se animan sólo con opacity y scale, que el
+   navegador compone sin repintar.
+
+   El ritmo (--ritmo) y el desfase (--desfase) los pone js/bichos.js para que
+   cada una vaya a lo suyo. El halo y el farol comparten los dos, así que
+   destellan juntos. */
+/* Por ENCIMA del tinte de la noche (z-index 450): el tinte oscurece el
+   paisaje, y una luciérnaga emite luz, no la recibe. Debajo de él su brillo
+   quedaba apagado y se veían peor que con los filtros de antes. */
+.bicho--luciernaga { z-index: 460; }
+.bicho--luciernaga .bicho-svg { overflow: visible; }
+.bicho--luciernaga::before {
+  content: '';
+  position: absolute;
+  left: -160%; top: -140%;
+  width: 320%; aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(214, 255, 90, .45) 0%, rgba(214, 255, 90, .12) 35%, rgba(214, 255, 90, 0) 62%);
+  pointer-events: none;
+  animation: destello var(--ritmo, 2.8s) ease-in-out infinite var(--desfase, 0s);
 }
-.bicho--luciernaga.al-reves { animation-name: cruzar-al-reves, brillo-farol; }
-@keyframes brillo-farol {
-  0%, 100% { opacity: .55; }
-  45%      { opacity: 1; }
+.bicho-svg .farol {
+  animation: destello var(--ritmo, 2.8s) ease-in-out infinite var(--desfase, 0s);
 }
-.bicho-svg .farol { animation: farol 2.4s ease-in-out infinite; transform-origin: center; }
-@keyframes farol {
-  0%, 100% { opacity: .5; scale: .82; }
-  45%      { opacity: 1; scale: 1.12; }
+/* Apagada casi todo el ciclo y luego un destello doble, que es como parpadea
+   la especie común: una onda suave de subir y bajar parecía una bombilla. */
+@keyframes destello {
+  0%, 52%, 100% { opacity: .12; scale: .8; }
+  60%           { opacity: 1;   scale: 1.08; }
+  66%           { opacity: .55; scale: .95; }
+  72%           { opacity: 1;   scale: 1.08; }
+  84%           { opacity: .2;  scale: .85; }
 }
 
 /* El bicho que se posa en una flor sin leer. */

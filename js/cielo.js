@@ -77,18 +77,35 @@
   /* ------------------------------------------------------- estrellas ----- */
   // Tres capas con box-shadow: muchas estrellas y sólo tres nodos, así el
   // parpadeo no le cuesta nada al móvil.
+  // En el cielo de verdad no son todas blancas: las hay azuladas y alguna
+  // cálida. Cada sombra del box-shadow lleva su propio color.
+  const COLORES = ['255,255,255', '255,255,255', '223,232,255', '207,220,255', '255,240,216'];
+
   function sembrarEstrellas() {
     if (!estrellas || estrellas.childElementCount) return;
+
+    // La vía láctea va primero, al fondo: un solo nodo, sin animación.
+    const via = document.createElement('i');
+    via.className = 'via-lactea';
+    estrellas.appendChild(via);
+
     for (let capa = 0; capa < 3; capa++) {
       const puntos = [];
-      const cuantas = capa === 2 ? 14 : 30;
+      const cuantas = capa === 2 ? 14 : 44;
       for (let i = 0; i < cuantas; i++) {
-        const x = (Math.random() * 100).toFixed(2);
-        const y = (Math.random() * 82).toFixed(2);
+        let x = Math.random() * 100, y = Math.random() * 82;
+        // Casi la mitad del polvo se amontona sobre la vía láctea, que cruza
+        // en diagonal: así se ve la banda también en las estrellas.
+        if (capa < 2 && Math.random() < .45) {
+          const t = Math.random();
+          x = t * 100;
+          y = 78 - t * 62 + (Math.random() - .5) * 16;
+        }
         // La capa 2 son las estrellas grandes; las otras, polvo de fondo.
-        const r = capa === 2 ? 2.4 : (Math.random() < .35 ? 1.7 : 1.1);
-        const brillo = (capa === 2 ? 1 : .72 + Math.random() * .28).toFixed(2);
-        puntos.push(`${x}vw ${y}vh 0 ${r.toFixed(1)}px rgba(255,255,255,${brillo})`);
+        const r = capa === 2 ? 2.4 : (Math.random() < .3 ? 1.6 : Math.random() < .5 ? 1.1 : .7);
+        const brillo = (capa === 2 ? 1 : .6 + Math.random() * .4).toFixed(2);
+        const c = COLORES[Math.floor(Math.random() * COLORES.length)];
+        puntos.push(`${x.toFixed(2)}vw ${y.toFixed(2)}vh 0 ${r.toFixed(1)}px rgba(${c},${brillo})`);
       }
       const d = document.createElement('i');
       d.className = 'capa-estrellas';
@@ -97,6 +114,24 @@
       d.style.animationDelay = (-capa * 1.1) + 's';
       estrellas.appendChild(d);
     }
+
+    // Siete estrellas con destello en cruz, cada una titilando a su ritmo.
+    for (let i = 0; i < 7; i++) {
+      const s = document.createElement('i');
+      s.className = 'destello-estrella';
+      s.style.left = (4 + Math.random() * 92).toFixed(1) + '%';
+      s.style.top  = (4 + Math.random() * 58).toFixed(1) + '%';
+      s.style.setProperty('--t', (2.4 + Math.random() * 3).toFixed(1) + 's');
+      s.style.setProperty('--d', (-Math.random() * 4).toFixed(1) + 's');
+      s.style.setProperty('--tam', (.7 + Math.random() * .6).toFixed(2));
+      estrellas.appendChild(s);
+    }
+
+    // Una estrella fugaz: cruza de vez en cuando (la animación la tiene
+    // escondida casi todo el ciclo).
+    const fugaz = document.createElement('i');
+    fugaz.className = 'fugaz';
+    estrellas.appendChild(fugaz);
   }
 
   /* ------------------------------------------------------------ ciclo ---- */

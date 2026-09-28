@@ -98,7 +98,7 @@
       c1:'#fdf0ff', c2:'#c07ad8', borde:'#7f3f9b', labelo:'#8e3fae', garganta:'#f6c945' },
 
     { clave:'lirio', nombre:'Lirio', forma:'lanza', n:6, largoBase:58,
-      capas:[{e:1,g:0}],
+      capas:[{e:1,g:0}], pecas:'#9c2a4f',
       c1:'#fff4f7', c2:'#ee8fb7', borde:'#ad2159', centro:'estambres', antera:'#df3f1e' },
 
     { clave:'alstroemeria', nombre:'Alstroemeria', forma:'lanza', n:6, largoBase:58,
@@ -134,10 +134,36 @@
 
   const porClave = Object.fromEntries(ESPECIES.map(e => [e.clave, e]));
   let n = 0; // los id de gradiente deben ser únicos dentro de cada documento
+  const f1 = v => v.toFixed(1);
+
+  // Cada especie tiembla siempre igual: la semilla sale de su clave.
+  const semillaDe = t => [...String(t)].reduce((s, c) => (s * 31 + c.charCodeAt(0)) % 99991, 7);
+
+  // ¿El color es oscuro? Decide si las semillas del disco van en tostado o en
+  // dorado: sobre el marrón del girasol no se verían puntos marrones.
+  function oscuro(hex) {
+    const h = String(hex || '').replace('#', '');
+    if (h.length !== 6) return false;
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+    return .2126 * r + .7152 * g + .0722 * b < .35;
+  }
+
+  /* El recorte con la silueta del pétalo, uno por forma y por dibujo. Sirve
+     para que la sombra del cuenco y el filo de luz no se salgan del pétalo:
+     el lanceolado del lirio es estrecho y cualquier mancha lo desbordaría. */
+  function recorteDe(ids, f) {
+    if (!ids.recortes.has(f)) ids.recortes.set(f, 'k' + (++n));
+    return ids.recortes.get(f);
+  }
 
   /* --------------------------------------------------------------------- */
   /*  Dibujo de un pétalo: relleno degradado, sombra en la base, banda de   */
   /*  luz y contorno del tono oscuro. Eso es lo que le da el aire pintado.  */
+  /*                                                                        */
+  /*  Además, lo que se trajo del ramo de la portada:                       */
+  /*   · cuenco: sombra en la base, donde el pétalo se mete bajo el vecino  */
+  /*   · filo: una banda de luz junto a la punta, el borde vuelto           */
+  /*  Los dos van recortados a la silueta del pétalo.                       */
   /* --------------------------------------------------------------------- */
   function petalo(e, f, ang, esc, ids, mini) {
     if (mini) {
@@ -146,11 +172,23 @@
               stroke-width="2.4" stroke-linejoin="round"/></g>`;
     }
     const L = f.largo;
-    return `<g transform="rotate(${ang}) scale(${esc})">
+    const k = recorteDe(ids, f);
+    return `<g transform="rotate(${f1(ang)}) scale(${esc.toFixed(3)})">
       <path d="${f.d}" fill="url(#${ids.base})" stroke="${e.borde}"
             stroke-width="1.9" stroke-linejoin="round"/>
+      <g clip-path="url(#${k})">
+        <ellipse cx="0" cy="2" rx="${f1(L * .34)}" ry="${f1(L * .36)}" fill="url(#${ids.cuenco})"/>
+        <path d="M${f1(-L * .26)},${f1(-L * .8)} Q0,${f1(-L * 1.06)} ${f1(L * .26)},${f1(-L * .8)}"
+              fill="none" stroke="#fff" stroke-width="${f1(L * .07)}" opacity=".45" stroke-linecap="round"/>
+      </g>
       <path d="${f.d}" transform="scale(.52) translate(0,-${(L * .35).toFixed(0)})"
             fill="url(#${ids.luz})"/>
+      ${e.pecas ? [0, 1, 2, 3, 4, 5].map(i => {
+        // Las pecas del lirio, sobre el nervio y en la mitad baja del pétalo.
+        const py = -L * (.2 + i * .07), px = (i % 2 ? 1 : -1) * (3 + (i % 3));
+        return `<ellipse cx="${px}" cy="${f1(py)}" rx="${(1.4 + (i % 2) * .4).toFixed(1)}" ry="2.1"
+                  transform="rotate(${px > 0 ? 20 : -20} ${px} ${f1(py)})" fill="${e.pecas}" opacity=".55"/>`;
+      }).join('') : ''}
       <path d="M0,-3 L0,-${(L * .82).toFixed(0)}" stroke="${e.borde}" stroke-width="1.2"
             opacity=".26" fill="none" stroke-linecap="round"/>
       ${f.simple ? '' : `
@@ -167,32 +205,73 @@
     </g>`;
   }
 
-  function anillo(e, f, num, esc, giro, ids, mini) {
+  /* Temblor: ningún pétalo clavado en su ángulo ni con el tamaño exacto del
+     vecino. Con todos iguales la flor se leía como un mandala. `az` es el
+     azar con semilla de la especie, así cada una tiembla siempre igual. */
+  function anillo(e, f, num, esc, giro, ids, mini, az) {
     let s = '';
-    for (let i = 0; i < num; i++) s += petalo(e, f, giro + i * (360 / num), esc, ids, mini);
+    const paso = 360 / num;
+    for (let i = 0; i < num; i++) {
+      const tiembla = !mini && az;
+      const a = giro + i * paso + (tiembla ? (az() - .5) * paso * .16 : 0);
+      const es = esc * (tiembla ? 1 + (az() - .5) * .1 : 1);
+      s += petalo(e, f, a, es, ids, mini);
+    }
     return s;
   }
 
   /* Centros -------------------------------------------------------------- */
-  function centro(e, r) {
+  function centro(e, r, ids) {
     switch (e.centro) {
       case 'estambres': return estambres(e, r); // los dibuja su propia función
-      case 'disco':
-        return `<circle r="${r * .3}" fill="${e.discoColor}"/>
-                <circle r="${r * .3}" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="1.6"/>
-                <circle r="${r * .17}" fill="rgba(0,0,0,.16)"/>
-                <circle cx="${-r * .1}" cy="${-r * .11}" r="${r * .07}" fill="#fff" opacity=".28"/>`;
-      case 'espiral':
-        return `<path d="M0,-${r * .34} C ${r * .23},-${r * .34} ${r * .32},-${r * .14} ${r * .24},${r * .06}
-                         C ${r * .16},${r * .24} -${r * .1},${r * .3} -${r * .22},${r * .15}
-                         C -${r * .32},${r * .02} -${r * .28},-${r * .2} -${r * .13},-${r * .27}"
-                      fill="none" stroke="${e.borde}" stroke-width="3.4" stroke-linecap="round" opacity=".85"/>`;
-      case 'boton':
-        return `<circle r="${r * .22}" fill="${e.botonColor || '#f7d768'}"
-                        stroke="rgba(0,0,0,.2)" stroke-width="1.3"/>
-                <circle cx="${-r * .07}" cy="${-r * .08}" r="${r * .07}" fill="#fff" opacity=".45"/>`;
+      case 'disco': return disco(e, r);
+      case 'espiral': {
+        // El remolino de la rosa del ramo: tres vueltas de pétalo aún sin
+        // abrir, rellenas. Una línea en espiral sola parecía un caracol.
+        const k = (r * .34 / 16).toFixed(3);
+        return `<g transform="scale(${k})">
+          <path d="M-12,5 C -16,-6 -8,-16 4,-14 C 14,-13 18,-3 13,6 C 9,14 -3,16 -9,11"
+                fill="url(#${ids.base})" stroke="${e.borde}" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M-7,4 C -9,-2 -4,-9 3,-8 C 9,-7 11,-1 8,4 C 6,9 -1,10 -5,7"
+                fill="${e.c2}" stroke="${e.borde}" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M-3,3 C -4,0 -2,-4 2,-3 C 5,-2 6,1 4,3"
+                fill="none" stroke="${e.borde}" stroke-width="1.3" stroke-linecap="round"/>
+        </g>`;
+      }
+      case 'boton': {
+        // Un botón con textura: puntos en espiral y un brillo, no un círculo liso.
+        const R = r * .22;
+        let s = `<circle r="${f1(R)}" fill="${e.botonColor || '#f7d768'}" stroke="rgba(0,0,0,.2)" stroke-width="1.3"/>`;
+        for (let i = 0; i < 9; i++) {
+          const a = i * 2.39996, rr = R * .72 * Math.sqrt((i + .5) / 9);
+          s += `<circle cx="${f1(Math.cos(a) * rr)}" cy="${f1(Math.sin(a) * rr)}" r="${f1(R * .11)}" fill="rgba(0,0,0,.16)"/>`;
+        }
+        return s + `<circle cx="${f1(-r * .07)}" cy="${f1(-r * .08)}" r="${f1(r * .07)}" fill="#fff" opacity=".45"/>`;
+      }
       default: return '';
     }
+  }
+
+  /* Disco de girasol y margarita: semillas en espiral de Fibonacci. El ángulo
+     de oro (137,5°, 2.39996 rad) es lo que dibuja los dos juegos de espirales
+     de un girasol de verdad. Sobre disco oscuro, semillas tostadas; sobre
+     disco claro, flósculos dorados. */
+  function disco(e, r) {
+    const R = r * .3;
+    const os = oscuro(e.discoColor);
+    const N = os ? 80 : 55;
+    let s = `<circle r="${f1(R * 1.18)}" fill="${os ? '#5a2d0a' : '#7a6a4a'}" opacity=".2"/>
+             <circle r="${f1(R)}" fill="${e.discoColor}"/>`;
+    for (let i = 1; i < N; i++) {
+      const a = i * 2.39996, rr = R * .93 * Math.sqrt(i / N);
+      s += `<circle cx="${f1(Math.cos(a) * rr)}" cy="${f1(Math.sin(a) * rr)}" r="${(R * (.05 + .035 * rr / R)).toFixed(2)}"
+               fill="${os ? (i % 3 ? '#3a1d08' : '#8a5a24') : '#c97c08'}" opacity="${os ? 1 : .7}"/>`;
+    }
+    return s + `
+      <circle r="${f1(R)}" fill="none" stroke="${os ? '#d9a032' : '#b8780a'}" stroke-width="${os ? 1.8 : 1}"
+              opacity=".6" ${os ? 'stroke-dasharray="1.2 1.4"' : ''}/>
+      <ellipse cx="${f1(-R * .3)}" cy="${f1(-R * .36)}" rx="${f1(R * .34)}" ry="${f1(R * .2)}"
+               fill="#fff" opacity=".3" transform="rotate(-30 ${f1(-R * .3)} ${f1(-R * .36)})"/>`;
   }
 
   // Estambres de lirio / amarilis / camelia: filamento curvo + antera.
@@ -258,7 +337,7 @@
   }
 
   /* Espiga (jacinto, gladiolo): florecillas escalonadas sobre el tallo. --- */
-  function espiga(e, ids, mini) {
+  function espiga(e, ids, mini, az) {
     const f = FORMA[e.forma];
     const num = e.floretes;
     let s = `<path d="M0,58 C -2,20 -1,-20 0,-56" fill="none" stroke="#4e8a3a"
@@ -269,9 +348,28 @@
       const x  = (i % 2 ? 1 : -1) * (11 - t * 8); // alternadas a los lados
       const es = (1 - t * .45) * (e.forma === 'volante' ? .85 : 1);
       s += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${es.toFixed(2)})">
-              ${anillo(e, f, e.n, 1, i * 24, ids, mini)}
-              ${mini ? '' : centro(e, f.largo)}
+              ${anillo(e, f, e.n, 1, i * 24, ids, mini, az)}
+              ${mini ? '' : centro(e, f.largo, ids)}
             </g>`;
+    }
+    return s;
+  }
+
+  /* Sépalos: puntas verdes asomando entre los pétalos de fuera. Delatan que
+     la flor está pegada a un tallo y no flotando. Sólo en las flores de
+     muchas capas (rosa, clavel, peonía…), que son las que los enseñan. */
+  function sepalos(e, f, az) {
+    const R = f.largo * e.capas[0].e;
+    const medio = 180 / e.n;
+    let s = '';
+    for (let i = 0; i < 5; i++) {
+      const a = i * 72 + medio + (az() - .5) * 10;
+      s += `<g transform="rotate(${f1(a)})">
+        <path d="M0,${f1(-R * .35)} C ${f1(R * .13)},${f1(-R * .6)} ${f1(R * .1)},${f1(-R * .95)} 0,${f1(-R * 1.12)}
+                 C ${f1(-R * .1)},${f1(-R * .95)} ${f1(-R * .13)},${f1(-R * .6)} 0,${f1(-R * .35)} Z"
+              fill="#7fae5f" stroke="#4f7d3b" stroke-width="1.3" stroke-linejoin="round"/>
+        <path d="M0,${f1(-R * .42)} L0,${f1(-R * 1.02)}" stroke="#4f7d3b" stroke-width=".8" opacity=".5"/>
+      </g>`;
     }
     return s;
   }
@@ -280,7 +378,8 @@
   function flor(clave, tam, mini, hue) {
     const e = porClave[clave] || ESPECIES[0];
     const t = tam || 64;
-    const ids = { base: 'b' + (++n), luz: 'l' + (++n) };
+    const ids = { base: 'b' + (++n), luz: 'l' + (++n), cuenco: 'c' + (++n), recortes: new Map() };
+    const az = azar(semillaDe(e.clave));
     // El tinte va dentro del SVG y no como filtro CSS: se calcula una vez al
     // decodificar la imagen, no en cada fotograma de la animación.
     const hid = 'h' + (++n);
@@ -290,25 +389,32 @@
       ini: `<g filter="url(#${hid})">`, fin: '</g>'
     } : { defs: '', ini: '', fin: '' };
 
-    let cuerpo;
+    let cuerpo, verde = '';
     if (e.tipo === 'tulipan')     cuerpo = tulipan(e, ids, mini);
     else if (e.tipo === 'orquidea') cuerpo = orquidea(e, ids, mini);
-    else if (e.tipo === 'espiga') cuerpo = espiga(e, ids, mini);
+    else if (e.tipo === 'espiga') cuerpo = espiga(e, ids, mini, az);
     else {
       const f = FORMA[e.forma];
       const capas = mini ? [e.capas[0]] : e.capas;
+      // Los sépalos van FUERA del tinte (ver más abajo): son verdes en todas
+      // las flores, y la rotación de color los volvería rosas o azules.
+      if (!mini && e.capas.length >= 3) verde = sepalos(e, f, az);
       // De fuera hacia dentro: las capas pequeñas van ENCIMA, si no quedan
       // sepultadas bajo la corona exterior y la flor pierde el volumen.
       cuerpo = capas.map((c, i) => {
         const sombra = i === 0 ? '' :
           `<circle r="${(f.largo * c.e * .92).toFixed(1)}" fill="${e.borde}" opacity=".13"/>`;
-        return sombra + anillo(e, f, e.n, c.e, c.g, ids, mini);
+        return sombra + anillo(e, f, e.n, c.e, c.g, ids, mini, az);
       }).join('');
       const r = f.largo * e.capas[0].e;
       cuerpo += mini
         ? `<circle r="${r * .2}" fill="${e.discoColor || e.botonColor || e.borde}"/>`
-        : (e.centro === 'estambres' ? estambres(e, r) : centro(e, r));
+        : (e.centro === 'estambres' ? estambres(e, r) : centro(e, r, ids));
     }
+
+    // Un recorte por cada forma de pétalo que se haya usado en el dibujo.
+    const recortes = [...ids.recortes].map(([f, id]) =>
+      `<clipPath id="${id}"><path d="${f.d}"/></clipPath>`).join('');
 
     return `<svg class="svg-flor" viewBox="-70 -70 140 140" width="${t}" height="${t}"
               xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -323,9 +429,14 @@
           <stop offset="55%"  stop-color="#ffffff" stop-opacity=".5"/>
           <stop offset="100%" stop-color="#ffffff" stop-opacity=".12"/>
         </linearGradient>
+        <radialGradient id="${ids.cuenco}">
+          <stop offset="0%"   stop-color="${e.borde}" stop-opacity=".34"/>
+          <stop offset="100%" stop-color="${e.borde}" stop-opacity="0"/>
+        </radialGradient>
+        ${recortes}
         ${tinte.defs}
       </defs>
-      ${tinte.ini}${cuerpo}${tinte.fin}
+      ${verde}${tinte.ini}${cuerpo}${tinte.fin}
     </svg>`;
   }
 
