@@ -17,6 +17,8 @@
      Datos.salir()                   -> Promise<void>
      Datos.sesion()                  -> Promise<boolean>
      Datos.alConectar(cb)            -> estado del canal realtime
+     Datos.avisos.guardar(sus)       -> apunta este teléfono para los avisos
+     Datos.avisos.quitar(endpoint)   -> lo borra
    ========================================================================== */
 (function () {
   'use strict';
@@ -66,6 +68,24 @@
   let sb = null;
   let alCambiar = () => {};
   let alEstado  = () => {};
+
+  /* Avisa al teléfono del otro de lo que uno acaba de hacer (api/avisar.js).
+     Sólo se dice qué pasó y dónde; el texto lo redacta el servidor con lo
+     que hay en la base. Se manda y se olvida: si falla, lo hecho ya está
+     hecho. `keepalive` deja salir la petición aunque se cierre la app justo
+     después de tocar el botón. */
+  async function avisar(evento) {
+    try {
+      const { data } = await sb.auth.getSession();
+      const token = data.session && data.session.access_token;
+      if (!token) return;
+      fetch('/api/avisar', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(evento)
+      }).catch(() => {});
+    } catch { /* sin avisos no se rompe nada */ }
+  }
 
   /* ------------------------------------------------------ reducir fotos --
      Las fotos del móvil pesan varios megas. Se reescalan y recomprimen en el
@@ -183,6 +203,7 @@
         foto: flor.foto || null, x: flor.x, y: flor.y
       }).select().single();
       if (error) throw error;
+      avisar({ tipo: 'flor', id: data.id });
       return aFlor(data);
     },
 
@@ -295,6 +316,7 @@
           .insert({ sobre, objeto, autor: yo.correo, texto })
           .select().single();
         if (error) throw error;
+        avisar({ tipo: 'comentario', id: data.id });
         return aComentario(data);
       },
 
@@ -314,6 +336,7 @@
           .upsert({ sobre, objeto, autor: yo.correo },
                   { onConflict: 'sobre,objeto,autor', ignoreDuplicates: true });
         if (error) throw error;
+        avisar({ tipo: 'corazon', sobre, objeto });
         return aCorazon({ sobre, objeto, autor: yo.correo,
                           created_at: new Date().toISOString() });
       },
@@ -368,6 +391,7 @@
           .insert({ titulo, descripcion, imagen: pub.publicUrl })
           .select().single();
         if (error) throw error;
+        avisar({ tipo: 'obra', id: data.id });
         return data;
       },
 
@@ -399,6 +423,30 @@
         sb.channel('galeria')
           .on('postgres_changes', { event: '*', schema: 'public', table: OBRAS }, cb)
           .subscribe();
+      }
+    },
+
+    /* ------------------------------------------------- avisos al teléfono --
+       La dirección de push de este teléfono, apuntada a nombre de quien
+       tiene la sesión. Si ya estaba a nombre del otro (ella encendió la
+       campana en tu teléfono), se borra y se vuelve a crear: el RLS no deja
+       cambiar el autor de una fila, y así no hace falta. Ver js/avisos.js. */
+    avisos: {
+      async guardar(suscripcion) {
+        const yo = await Remoto.quienSoy();
+        if (!yo) throw new Error(SIN_SESION);
+        const s = suscripcion.toJSON();
+        await sb.from('avisos').delete().eq('endpoint', s.endpoint);
+        const { error } = await sb.from('avisos').insert({
+          endpoint: s.endpoint, autor: yo.correo,
+          p256dh: s.keys.p256dh, auth: s.keys.auth
+        });
+        if (error) throw error;
+      },
+
+      async quitar(endpoint) {
+        const { error } = await sb.from('avisos').delete().eq('endpoint', endpoint);
+        if (error) throw error;
       }
     }
   };
@@ -588,6 +636,7 @@
     alConectar:cb   => { alEstado = cb; },
     reducirImagen,
     arte: impl.arte,
-    social: impl.social
+    social: impl.social,
+    avisos: impl.avisos      // sólo en Supabase: en demo no hay a quién avisar
   };
 })();

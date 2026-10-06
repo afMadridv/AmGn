@@ -110,11 +110,12 @@
   addEventListener('resize', medirZoom);
 
   /* ---------------------------------------------------------------- utils */
-  const aviso = (txt) => {
+  // `ms`: los mensajes largos (cómo instalar la app) necesitan más tiempo.
+  const aviso = (txt, ms = 2600) => {
     el.brindis.textContent = txt;
     el.brindis.classList.add('visible');
     clearTimeout(aviso._t);
-    aviso._t = setTimeout(() => el.brindis.classList.remove('visible'), 2600);
+    aviso._t = setTimeout(() => el.brindis.classList.remove('visible'), ms);
   };
 
   // Todo lo que venga de fuera —lo que ella escribe, lo que manda Spotify—

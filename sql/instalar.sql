@@ -389,6 +389,47 @@ exception when duplicate_object then null;
 end $$;
 
 -- --------------------------------------------------------------------------
+-- 2e. Avisos al teléfono
+--     Cada teléfono que encendió la campana deja aquí su dirección de push:
+--     el `endpoint` (una URL de Apple o de Google) y las dos claves con las
+--     que se le cifra el mensaje. api/avisar.js manda el aviso a los
+--     teléfonos del OTRO: los de `autor` distinto de quien hizo la cosa.
+--
+--     Las direcciones sólo sirven con la clave privada de los avisos, que
+--     vive en Vercel, así que verlas no deja mandar nada. Aun así sólo las ve
+--     la casa: la función las lee con la sesión de quien llama.
+-- --------------------------------------------------------------------------
+create table if not exists public.avisos (
+  endpoint   text primary key,
+  autor      text        not null,
+  p256dh     text        not null,
+  auth       text        not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.avisos enable row level security;
+
+drop policy if exists "avisos los ve la casa"       on public.avisos;
+drop policy if exists "avisos los enciende cada uno" on public.avisos;
+drop policy if exists "avisos los apaga la casa"     on public.avisos;
+
+create policy "avisos los ve la casa"
+  on public.avisos for select to authenticated
+  using (es_de_la_casa());
+
+-- Cada uno apunta su teléfono a su nombre, nunca al del otro.
+create policy "avisos los enciende cada uno"
+  on public.avisos for insert to authenticated
+  with check (es_de_la_casa() and autor = auth.jwt() ->> 'email');
+
+-- Borrar lo puede cualquiera de los dos: si ella entra en tu teléfono y
+-- enciende la campana, la dirección pasa a su nombre (se borra y se crea), y
+-- la función olvida sola los teléfonos que ya no existen.
+create policy "avisos los apaga la casa"
+  on public.avisos for delete to authenticated
+  using (es_de_la_casa());
+
+-- --------------------------------------------------------------------------
 -- 3. Fotos de las notas
 -- --------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -487,6 +528,8 @@ select
   (select count(*) from pg_policies
     where schemaname = 'public'
       and tablename in ('comentarios', 'corazones'))                    as politicas_social,
+  (select count(*) from pg_policies
+    where schemaname = 'public' and tablename = 'avisos')               as politicas_avisos,
   -- MIRA ESTO: son los dos correos que pueden sembrar, comentar y dar
   -- corazón. Si aquí no salen los dos que esperas, es que hay algún usuario
   -- más antiguo de por medio: bórralo en Authentication → Users.

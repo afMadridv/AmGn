@@ -1463,7 +1463,8 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
    Su sitio. Todo un poco más cálido y con más aire que el resto: es una
    exposición, no una lista.
    ======================================================================== */
-.galeria-boton {
+.galeria-boton,
+.avisos-boton {
   position: absolute;
   top: max(96px, calc(env(safe-area-inset-top) + 86px));
   right: 12px;
@@ -1479,6 +1480,15 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   transition: transform .2s cubic-bezier(.16,1,.3,1), color .2s ease;
 }
 .galeria-boton:hover { transform: scale(1.08); color: var(--acento); }
+
+/* La campana de los avisos, debajo de la galería. Encendida se rellena con
+   el color del corazón. */
+.avisos-boton { top: max(140px, calc(env(safe-area-inset-top) + 130px)); }
+.avisos-boton[hidden] { display: none; }
+.avisos-boton:hover { transform: scale(1.08); color: var(--acento); }
+.avisos-boton:disabled { opacity: .55; cursor: progress; }
+.avisos-boton[data-activo="si"] { color: var(--acento); }
+.avisos-boton[data-activo="si"] svg path:first-child { fill: currentColor; }
 
 .tarjeta--galeria {
   width: min(94vw, 620px);

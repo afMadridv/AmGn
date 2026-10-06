@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "Para Gabriela",
+  "short_name": "Jardín",
+  "description": "Un jardín donde cada flor es una nota.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff6fa",
+  "theme_color": "#7cc4a4",
+  "icons": [
+    { "src": "/img/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/img/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/img/icono.svg",     "sizes": "any",     "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
