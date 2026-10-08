@@ -44,7 +44,9 @@
     puertaPass: $('#puertaPass'),
     puertaError: $('#puertaError'),
     puertaFlor: $('#puertaFlor'),
+    puertaRecordar: $('#puertaRecordar'),
     btnPuerta:  $('#btnPuerta'),
+    estadoQuien: $('#estadoQuien'),
 
     modalLogin: $('#modalLogin'),
     formLogin:  $('#formLogin'),
@@ -129,7 +131,53 @@
     hour: '2-digit', minute: '2-digit'
   });
 
+  // Lo que se puede hacer cuando el teléfono no tiene nada mejor que hacer.
+  // Safari no tiene requestIdleCallback: ahí basta con un rato después.
+  const enReposo = (fn, max = 1500) => 'requestIdleCallback' in window
+    ? requestIdleCallback(plazo => fn(plazo), { timeout: max })
+    : setTimeout(() => fn(null), 400);
+
+  /* Trabajo largo partido en pasos: se hacen mientras el navegador diga que
+     tiene tiempo libre y el resto espera al siguiente rato libre. Nunca
+     bloquea más de unos milisegundos seguidos. Cada tanda hace al menos un
+     paso, para que siempre avance. */
+  function aRatos(pasos, alAcabar) {
+    // Entre tanda y tanda, poco: con un jardín animado puede que nunca haya
+    // un rato libre "oficial", y Safari ni siquiera sabe pedirlo.
+    const luego = () => 'requestIdleCallback' in window
+      ? requestIdleCallback(tanda, { timeout: 100 })
+      : setTimeout(() => tanda(null), 30);
+    const tanda = plazo => {
+      const hasta = performance.now() + 8;
+      do { pasos.shift()(); }
+      while (pasos.length && (plazo && !plazo.didTimeout
+                               ? plazo.timeRemaining() > 4
+                               : performance.now() < hasta));
+      if (pasos.length) luego();
+      else if (alAcabar) alAcabar();
+    };
+    if (pasos.length) luego();
+    else if (alAcabar) alAcabar();
+  }
+
+  // Decodifica las imágenes de un trozo de página antes de que se vean: si
+  // no, el navegador lo hace en el primer fotograma en que aparecen, y ese
+  // fotograma es el que se traba.
+  const decodificar = raiz => raiz.querySelectorAll('img').forEach(i => {
+    if (i.decode) i.decode().catch(() => {});
+  });
+
+  /* Con un modal encima, el jardín de detrás se queda quieto (ver .en-pausa
+     en estilos.css): son decenas de animaciones que nadie mira. La pausa se
+     pone cuando el modal ya terminó de entrar, no antes: cambiarla obliga a
+     repasar los estilos de todo el jardín, y hacerlo en el primer fotograma
+     del modal era justo lo que lo trababa. */
+  let pausaT = null;
   function abrir(modal)  {
+    clearTimeout(pausaT);
+    pausaT = setTimeout(() => {
+      if (document.querySelector('.modal.abierto')) el.jardin.classList.add('en-pausa');
+    }, 480);
     modal.hidden = false;
     // Un reflow forzado, no requestAnimationFrame: con la pestaña en segundo
     // plano rAF no dispara y el modal se quedaba transparente para siempre.
@@ -147,6 +195,8 @@
       // no, cerrar el de encima destrabaría la página con el de abajo puesto.
       if (!document.querySelector('.modal.abierto')) {
         document.body.classList.remove('sin-scroll');
+        clearTimeout(pausaT);
+        el.jardin.classList.remove('en-pausa');
       }
     }, 240);
   }
@@ -161,14 +211,19 @@
     texto:  $('#confirmarTexto'),
     si:     $('#btnConfirmarSi'),
     no:     $('#btnConfirmarNo'),
-    fondo:  $('#confirmarFondo')
+    fondo:  $('#confirmarFondo'),
+    aviso:  $('#modalConfirmar .confirmar-aviso')
   };
   let responder = null;
 
-  function confirmar({ titulo = '¿Seguro?', texto = '', aceptar = 'Sí, borrar' } = {}) {
+  // `sinVuelta`: el "Esto no tiene vuelta atrás" es para borrar; cerrar
+  // sesión, por ejemplo, sí se deshace volviendo a entrar.
+  function confirmar({ titulo = '¿Seguro?', texto = '', aceptar = 'Sí, borrar',
+                       sinVuelta = true } = {}) {
     conf.titulo.textContent = titulo;
     conf.texto.textContent  = texto;
     conf.si.textContent     = aceptar;
+    conf.aviso.hidden       = !sinVuelta;
     abrir(conf.modal);
     setTimeout(() => conf.no.focus(), 240);
     return new Promise(resolve => { responder = resolve; });
@@ -201,20 +256,74 @@
     }
   });
 
+  /* --------------------------------------------- el jardín, preparado antes --
+     Antes el jardín estaba en display:none hasta el momento de entrar, y
+     mostrarlo obligaba a calcular la escena entera —cientos de elementos y
+     decenas de flores por decodificar— en el mismo fotograma en que empezaba
+     la transición: más de un segundo trabado en el teléfono.
+
+     Ahora se prepara en un rato libre mientras se mira la portada: sale de
+     display:none pero sigue transparente, quieto (.quieto en estilos.css) e
+     `inert` para que el teclado no se cuele dentro. Al entrar sólo queda
+     subirle la opacidad; el jardín aparece quieto y se echa a andar al
+     terminar el fundido, cuando ya no hay nada más moviéndose. */
+  let jardinPreparado = false;
+  function prepararJardin() {
+    if (jardinPreparado) return false;
+    jardinPreparado = true;
+    el.jardin.classList.add('quieto');
+    el.jardin.inert = true;
+    el.jardin.hidden = false;
+    decodificar(el.jardin);
+    return true;
+  }
+
   /* ------------------------------------------------------- portada -> jardín */
   function entrarAlJardin() {
     if (jardinAbierto) return;
     jardinAbierto = true;
     el.puerta.hidden = true;
+    el.portada.classList.remove('con-puerta');
+    // Si se entra antes de que hubiera un rato libre, se prepara ahora, y
+    // entonces sí hace falta el reflow para que el fundido arranque desde 0.
+    if (prepararJardin()) void el.jardin.offsetWidth;
     el.portada.classList.add('saliendo');
-    el.jardin.hidden = false;
     // El toque del ramo es el gesto que los navegadores exigen para dejar
     // sonar audio. Si el reproductor aún no cargó, queda pendiente.
     if (window.Musica) window.Musica.arrancar();
-    void el.jardin.offsetWidth;   // mismo motivo que en abrir()
     el.jardin.classList.add('visible');
-    setTimeout(() => { el.portada.hidden = true; }, 900);
+    pintarQuien();
+    setTimeout(() => {
+      el.portada.hidden = true;
+      el.jardin.inert = false;
+      el.jardin.classList.remove('quieto');
+      // El portal de sembrar se arma ahora, en un rato libre, y no al abrirlo.
+      enReposo(prepararPortal, 3000);
+    }, 900);
   }
+
+  // En la píldora de estado: con quién se entró.
+  async function pintarQuien() {
+    const yo = await Datos.quienSoy().catch(() => null);
+    el.estadoQuien.textContent = yo ? '· ' + yo.nombre : '';
+    el.estadoQuien.hidden = !yo;
+  }
+
+  // Tocar la píldora cierra la sesión: con "Mantener sesión" es la única
+  // forma de que el teléfono vuelva a pedir la llave.
+  el.estado.addEventListener('click', async () => {
+    const yo = await Datos.quienSoy().catch(() => null);
+    if (!yo) { aviso('No has entrado con ninguna cuenta'); return; }
+    const seguro = await confirmar({
+      titulo: '¿Cerrar sesión?',
+      texto: `Entraste como ${yo.nombre}. La próxima vez el jardín te pedirá la llave.`,
+      aceptar: 'Cerrar sesión',
+      sinVuelta: false
+    });
+    if (!seguro) return;
+    await Datos.salir();
+    location.reload();
+  });
 
   /* --------------------------------------------------- la puerta del jardín --
      Tocar el ramo ya no entra directo: primero pide usuario y contraseña.
@@ -248,6 +357,10 @@
   function abrirPuerta() {
     if (!el.puerta.hidden) return;
     el.puertaError.hidden = true;
+    el.puertaRecordar.checked = Datos.recordando();
+    // El ramo y el halo se quedan quietos detrás del cristal: el desenfoque
+    // de la puerta no tiene que recalcularse en cada fotograma.
+    el.portada.classList.add('con-puerta');
     el.puerta.hidden = false;
     el.puertaFlor.innerHTML = FloresSVG.img('rosa', 54);
     // Sin la espera el foco llega antes que la animación de entrada y el
@@ -261,10 +374,13 @@
     const clave   = el.puertaPass.value;
 
     el.btnPuerta.disabled = true;
+    // La respuesta del servidor tarda un poco: que se note al instante que
+    // el toque llegó.
+    el.btnPuerta.textContent = 'Abriendo…';
     el.puertaError.hidden = true;
 
     try {
-      await Datos.entrar(usuario, clave);
+      await Datos.entrar(usuario, clave, el.puertaRecordar.checked);
       guardarLlave();
       // Quien firma acaba de cambiar: los comentarios y corazones que hubiera
       // abiertos tienen que enterarse de quién es ahora.
@@ -278,11 +394,13 @@
       el.puertaPass.focus();
     } finally {
       el.btnPuerta.disabled = false;
+      el.btnPuerta.textContent = 'Abrir el jardín';
     }
   });
 
   function cerrarPuerta() {
     if (el.puerta.hidden) return;
+    el.portada.classList.remove('con-puerta');
     el.puerta.hidden = true;
     el.formPuerta.reset();
     el.puertaError.hidden = true;
@@ -595,15 +713,18 @@
     }
   }
 
-  /* ----------------------------------------------------- portal: selectores */
-  // Se construye la primera vez que se abre el portal: son 18 flores y no
-  // hace falta pagar ese dibujo en la carga inicial (ella nunca lo abre).
-  let selectoresListos = false;
-  function construirSelectores() {
-    if (selectoresListos) return;
-    selectoresListos = true;
+  /* ----------------------------------------------------- portal: selectores
+     31 flores: 15 especies y 16 tintes. Cada una es un SVG que hay que
+     dibujar y decodificar, y hacerlo todo al tocar el portal lo trababa
+     medio segundo. Ahora cada botón es un paso suelto, y los pasos se hacen
+     de uno en uno en los ratos libres después de entrar (prepararPortal).
+     Si el portal se abre antes de que acaben, lo que falte se hace en el
+     acto. Ella nunca lo abre: a ella no se le prepara. */
+  let pasosSelectores = null;   // los que faltan; null = sin empezar
 
-    FloresSVG.ESPECIES.forEach((f, i) => {
+  function pasosDeSelectores() {
+    const pasos = [];
+    FloresSVG.ESPECIES.forEach((f, i) => pasos.push(() => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'opcion' + (i === 0 ? ' activa' : '');
@@ -616,9 +737,10 @@
         b.classList.add('activa');
       });
       el.selFlor.appendChild(b);
-    });
+      decodificar(b);
+    }));
 
-    CFG.COLORES.forEach((c, i) => {
+    CFG.COLORES.forEach((c, i) => pasos.push(() => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'opcion opcion--color' + (i === 0 ? ' activa' : '');
@@ -632,7 +754,20 @@
         b.classList.add('activa');
       });
       el.selColor.appendChild(b);
-    });
+      decodificar(b);
+    }));
+    return pasos;
+  }
+
+  function construirSelectores() {
+    if (!pasosSelectores) pasosSelectores = pasosDeSelectores();
+    while (pasosSelectores.length) pasosSelectores.shift()();
+  }
+
+  async function prepararPortal() {
+    if (!await esElJardinero()) return;
+    if (!pasosSelectores) pasosSelectores = pasosDeSelectores();
+    aRatos(pasosSelectores, () => listarEnPanel(true));
   }
 
   el.notaInput.addEventListener('input', () => {
@@ -708,11 +843,12 @@
     el.btnLogin.disabled = true;
     el.loginError.hidden = true;
     try {
-      await Datos.entrar(el.loginUser.value.trim(), el.loginPass.value);
+      await Datos.entrar(el.loginUser.value.trim(), el.loginPass.value, Datos.recordando());
       // Quien firma acaba de cambiar: los comentarios abiertos deben saberlo.
       if (window.Social) Social.olvidarSesion();
       el.formLogin.reset();
       cerrar(el.modalLogin);
+      pintarQuien();
 
       if (await esElJardinero()) {
         setTimeout(abrirPanel, 260);
@@ -766,37 +902,57 @@
   });
 
   function abrirPanel() {
-    construirSelectores();
-    listarEnPanel();
+    construirSelectores();      // ya hechos en el rato libre: no cuesta nada
+    listarEnPanel();            // sólo rehace la lista si cambió
     abrir(el.modalSembrar);
   }
 
-  function listarEnPanel() {
-    el.resumen.textContent = `Flores sembradas (${flores.length})`;
-    el.listaFlores.innerHTML = '';
-    [...flores].reverse().forEach(f => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="mini">${
-          FloresSVG.existe(f.especie) ? FloresSVG.img(f.especie, 26, true, f.hue) : f.especie}</span>
-        <span class="mini-txt">${f.foto ? '<span class="mini-foto" title="Lleva foto">▣</span> ' : ''}${
-          escapar(f.texto.slice(0, 36))}${f.texto.length > 36 ? '…' : ''}</span>
-        <button type="button" class="mini-borrar" aria-label="Borrar">&times;</button>`;
-      li.querySelector('.mini-borrar').addEventListener('click', async () => {
-        const seguro = await confirmar({
-          titulo: '¿Arrancar esta flor?',
-          texto: 'Se va la flor y con ella la nota que escribiste.',
-          aceptar: 'Sí, arrancarla'
-        });
-        if (!seguro) return;
-        try {
-          await Datos.borrar(f.id);
-          flores = flores.filter(x => x.id !== f.id);
-          repintar();
-          listarEnPanel();
-        } catch (err) { aviso(err.message || 'No pude borrarla'); }
+  /* La lista de flores del portal, también por pasos (una flor cada uno).
+     `firmaPanel` dice qué flores había la última vez: si no cambió, no se
+     rehace. `tandaLista` invalida los pasos de una lista anterior que aún no
+     hubieran terminado, para que no se cuelen en la nueva. */
+  let firmaPanel = '';
+  let pasosLista = [];
+  let tandaLista = 0;
+
+  function listarEnPanel(aPoquitos) {
+    const firma = flores.map(f => f.id).join(',');
+    if (firma !== firmaPanel) {
+      firmaPanel = firma;
+      const tanda = ++tandaLista;
+      el.resumen.textContent = `Flores sembradas (${flores.length})`;
+      el.listaFlores.innerHTML = '';
+      pasosLista = [...flores].reverse().map(f => () => {
+        if (tanda === tandaLista) pintarEnPanel(f);
       });
-      el.listaFlores.appendChild(li);
+    }
+    if (aPoquitos) aRatos(pasosLista);
+    else while (pasosLista.length) pasosLista.shift()();
+  }
+
+  function pintarEnPanel(f) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="mini">${
+        FloresSVG.existe(f.especie) ? FloresSVG.img(f.especie, 26, true, f.hue) : f.especie}</span>
+      <span class="mini-txt">${f.foto ? '<span class="mini-foto" title="Lleva foto">▣</span> ' : ''}${
+        escapar(f.texto.slice(0, 36))}${f.texto.length > 36 ? '…' : ''}</span>
+      <button type="button" class="mini-borrar" aria-label="Borrar">&times;</button>`;
+    li.querySelector('.mini-borrar').addEventListener('click', async () => {
+      const seguro = await confirmar({
+        titulo: '¿Arrancar esta flor?',
+        texto: 'Se va la flor y con ella la nota que escribiste.',
+        aceptar: 'Sí, arrancarla'
+      });
+      if (!seguro) return;
+      try {
+        await Datos.borrar(f.id);
+        flores = flores.filter(x => x.id !== f.id);
+        repintar();
+        listarEnPanel();
+      } catch (err) { aviso(err.message || 'No pude borrarla'); }
     });
+    el.listaFlores.appendChild(li);
+    decodificar(li);
   }
 
   el.formSembrar.addEventListener('submit', async e => {
@@ -839,6 +995,7 @@
   el.btnSalir.addEventListener('click', async () => {
     await Datos.salir();
     cerrar(el.modalSembrar);
+    pintarQuien();
     aviso('Sesión cerrada');
   });
 
@@ -865,5 +1022,7 @@
     await Datos.iniciar();
     conectar();
     await cargar();
+    // Con la portada ya quieta, se deja el jardín listo detrás.
+    enReposo(prepararJardin, 2500);
   })();
 })();

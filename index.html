@@ -55,6 +55,14 @@
                placeholder="••••••••" enterkeyhint="go">
       </label>
 
+      <!-- Marcada, la sesión se guarda en el teléfono y la próxima vez el
+           ramo abre el jardín sin pedir la llave. Se cierra tocando la
+           píldora de estado, arriba a la izquierda. -->
+      <label class="puerta-recordar">
+        <input type="checkbox" id="puertaRecordar">
+        <span>Mantener sesión iniciada</span>
+      </label>
+
       <p class="error puerta-error" id="puertaError" hidden></p>
 
       <button class="puerta-btn" type="submit" id="btnPuerta">Abrir el jardín</button>
@@ -109,9 +117,10 @@
   </div>
 
   <!-- Estado de conexión -->
-  <div class="estado" id="estado" role="status" aria-live="polite">
-    <span class="estado-punto"></span><span class="estado-txt">conectando…</span>
-  </div>
+  <!-- Estado de conexión y quién entró. Tocarlo cierra la sesión. -->
+  <button class="estado" id="estado" type="button" aria-label="Cerrar sesión">
+    <span class="estado-punto"></span><span class="estado-txt" role="status" aria-live="polite">conectando…</span><span class="estado-quien" id="estadoQuien" hidden></span>
+  </button>
 
   <p class="pista" id="pista">Toca una flor para leer su nota</p>
 

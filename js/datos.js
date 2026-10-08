@@ -13,7 +13,8 @@
      Datos.sembrar({texto,emoji,hue,x,y}) -> Promise<Flor>
      Datos.borrar(id)                -> Promise<void>
      Datos.suscribir(cb)             -> escucha cambios en vivo
-     Datos.entrar(email, pass)       -> Promise<void>
+     Datos.entrar(email, pass, mantener) -> Promise<void>
+     Datos.recordando()              -> ¿se marcó "Mantener sesión"?
      Datos.salir()                   -> Promise<void>
      Datos.sesion()                  -> Promise<boolean>
      Datos.alConectar(cb)            -> estado del canal realtime
@@ -68,6 +69,49 @@
   let sb = null;
   let alCambiar = () => {};
   let alEstado  = () => {};
+
+  /* ------------------------------------------------ mantener la sesión --
+     Por defecto la sesión vive sólo en memoria y muere al cerrar o recargar:
+     así, si ella abre el jardín en tu teléfono, le pide la llave. Con
+     "Mantener sesión" marcado al entrar, la sesión se guarda en el teléfono
+     y la próxima vez el ramo abre el jardín directamente.
+
+     Supabase guarda la sesión donde le diga `almacen`: en localStorage si
+     está marcado, en un Map si no. La marca es 'patico:recordar'; se pone
+     ANTES de entrar, para que la sesión nueva caiga ya en el sitio bueno. */
+  const RECORDAR = 'patico:recordar';
+  const enMemoria = new Map();
+
+  function recordando() {
+    try { return localStorage.getItem(RECORDAR) === '1'; } catch { return false; }
+  }
+
+  function recordar(si) {
+    try {
+      if (si) localStorage.setItem(RECORDAR, '1');
+      else {
+        localStorage.removeItem(RECORDAR);
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('sb-') || k.startsWith('supabase.auth'))
+          .forEach(k => localStorage.removeItem(k));
+      }
+    } catch { /* modo privado: la sesión se queda en memoria y ya */ }
+  }
+
+  const almacen = {
+    getItem(k) {
+      if (recordando()) { try { return localStorage.getItem(k); } catch { /* sigue */ } }
+      return enMemoria.has(k) ? enMemoria.get(k) : null;
+    },
+    setItem(k, v) {
+      if (recordando()) { try { localStorage.setItem(k, v); return; } catch { /* sigue */ } }
+      enMemoria.set(k, v);
+    },
+    removeItem(k) {
+      enMemoria.delete(k);
+      try { localStorage.removeItem(k); } catch { /* nada que quitar */ }
+    }
+  };
 
   /* Avisa al teléfono del otro de lo que uno acaba de hacer (api/avisar.js).
      Sólo se dice qué pasó y dónde; el texto lo redacta el servidor con lo
@@ -174,20 +218,17 @@
   /* ====================================================================== */
   const Remoto = {
     async iniciar() {
-      // La sesión del portal NO se guarda: vive en memoria y muere al cerrar o
-      // recargar la página. Así, si ella abre el enlace en tu teléfono, entra
-      // al jardín como cualquiera y el portal le pide la contraseña.
+      // Sin "Mantener sesión", se barre lo que hubiera quedado guardado (de
+      // una versión anterior, o de cuando sí estaba marcado).
+      if (!recordando()) recordar(false);
+
+      // `persistSession` va encendido siempre: dónde se guarda lo decide
+      // `almacen`. `autoRefreshToken` renueva el token de una hora; sin él,
+      // con el jardín abierto mucho rato, comentar acababa fallando.
       sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false },
+        auth: { persistSession: true, autoRefreshToken: true, storage: almacen },
         realtime: { params: { eventsPerSecond: 5 } }
       });
-
-      // Barre lo que hubiera dejado guardado una versión anterior de la app.
-      try {
-        Object.keys(localStorage)
-          .filter(k => k.startsWith('sb-') || k.startsWith('supabase.auth'))
-          .forEach(k => localStorage.removeItem(k));
-      } catch { /* modo privado sin localStorage: nada que barrer */ }
     },
 
     async listar() {
@@ -266,12 +307,17 @@
       });
     },
 
-    async entrar(email, pass) {
+    async entrar(email, pass, mantener) {
+      recordar(Boolean(mantener));
       const { error } = await sb.auth.signInWithPassword({ email, password: pass });
       if (error) throw error;
     },
 
-    async salir() { await sb.auth.signOut(); },
+    // Cerrar sesión también olvida "Mantener sesión": quien sale, sale.
+    async salir() {
+      await sb.auth.signOut().catch(() => {});
+      recordar(false);
+    },
 
     async sesion() {
       const { data } = await sb.auth.getSession();
@@ -462,8 +508,10 @@
     _guardar(v) { localStorage.setItem(LLAVE, JSON.stringify(v)); },
 
     async iniciar() {
-      // Igual que en Supabase: cada visita empieza sin sesión.
+      // Igual que en Supabase: cada visita empieza sin sesión, salvo que se
+      // marcara "Mantener sesión" (entonces está en localStorage).
       sessionStorage.removeItem('patico:sesion');
+      if (!recordando()) recordar(false);
     },
 
     async listar() { return this._leer().map(aFlor); },
@@ -605,14 +653,26 @@
 
     // En demo la contraseña es 'demo' para cualquiera de los dos correos: así
     // se puede probar cómo se ve firmando como uno o como el otro.
-    async entrar(email, pass) {
+    async entrar(email, pass, mantener) {
       if (pass !== 'demo') throw new Error('En modo demo la contraseña es: demo');
-      sessionStorage.setItem('patico:sesion', String(email || '').toLowerCase());
+      recordar(Boolean(mantener));
+      const correo = String(email || '').toLowerCase();
+      sessionStorage.setItem('patico:sesion', correo);
+      if (mantener) { try { localStorage.setItem('patico:sesion', correo); } catch { /* */ } }
     },
-    async salir()  { sessionStorage.removeItem('patico:sesion'); },
-    async sesion() { return Boolean(sessionStorage.getItem('patico:sesion')); },
+    async salir() {
+      sessionStorage.removeItem('patico:sesion');
+      try { localStorage.removeItem('patico:sesion'); } catch { /* */ }
+      recordar(false);
+    },
+    _correo() {
+      let c = sessionStorage.getItem('patico:sesion');
+      if (!c && recordando()) { try { c = localStorage.getItem('patico:sesion'); } catch { /* */ } }
+      return c;
+    },
+    async sesion() { return Boolean(this._correo()); },
     async quienSoy() {
-      const correo = sessionStorage.getItem('patico:sesion');
+      const correo = Local._correo();
       return correo ? { correo, nombre: nombreDe(correo) } : null;
     }
   };
@@ -628,7 +688,8 @@
     darCorazon: id  => impl.darCorazon(id),
     borrar:    id   => impl.borrar(id),
     suscribir: cb   => impl.suscribir(cb),
-    entrar:    (e,p)=> impl.entrar(e, p),
+    entrar:    (e,p,m) => impl.entrar(e, p, m),   // m: mantener sesión
+    recordando,
     salir:     ()   => impl.salir(),
     sesion:    ()   => impl.sesion(),
     quienSoy:  ()   => impl.quienSoy(),

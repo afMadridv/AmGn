@@ -1,27 +1,26 @@
 /* ==========================================================================
-   MÚSICA — la playlist de Spotify, con reproductor propio
+   MÚSICA — la playlist de Spotify, sonando entera
    --------------------------------------------------------------------------
-   Spotify pone el sonido; el mando es nuestro. Su reproductor sigue en la
-   página, escondido, y desde fuera se le va diciendo qué tocar.
+   El panel, los botones y la lista son los mismos de siempre. Lo que cambió
+   es quién pone el sonido, y por qué:
 
-   La clave es la lista de canciones: la sirve api/playlist.js,
-   que la lee desde el servidor (el navegador no puede, CORS lo impide). Con
-   esa lista en la mano se puede:
+     · Spotify sabe QUÉ canciones hay. La lista (título, artista, duración)
+       la sigue trayendo api/playlist.js.
+     · Spotify NO puede ponerlas enteras. Su embed sólo da 15-30 s tomados
+       del medio salvo que quien escucha tenga sesión Premium abierta en ese
+       mismo navegador. No es un fallo del código y no hay forma de esquivarlo
+       desde una web.
+     · Así que el sonido lo pone el reproductor incrustado de YouTube, que sí
+       da la canción entera sin cuenta ni sesión. api/youtube.js traduce
+       "título + artista" al vídeo que le corresponde, eligiendo el que cuadra
+       con la duración que dijo Spotify.
 
-     · enseñar SIEMPRE el nombre y el artista correctos,
-     · saltar a la anterior y a la siguiente —la API de Spotify no trae esos
-       botones, así que se cargan las canciones una a una con `loadUri`—,
-     · encadenar sola la siguiente cuando una termina,
-     · y elegir cualquiera de un vistazo.
+   El reproductor de YouTube va escondido dentro de .lista-spotify, que tiene
+   height:0 y NO display:none: si el iframe sale del flujo, el navegador puede
+   cortar el sonido.
 
-   Si la función falla (o se abre sin un servidor que la ejecute), se cae con
-   elegancia al modo de antes: suena la playlist entera del tirón, el nombre
-   se pregunta al oEmbed y para saltar se despliega el reproductor de Spotify.
-
-   Sobre los adelantos: sin sesión de Spotify iniciada, los embeds sólo dan un
-   trozo de 15-30 s tomado del medio de la canción. No es cosa del código y no
-   hay manera de esquivarlo desde una web; el panel lo avisa y ofrece abrir la
-   playlist en Spotify, donde suena entera.
+   Si no hay lista, o si no se encuentra ningún vídeo, el panel lo dice y deja
+   el enlace para abrir la playlist en Spotify.
    ========================================================================== */
 (function () {
   'use strict';
@@ -35,7 +34,7 @@
     boton:   $('#btnMusica'),
     estado:  $('#musicaEstado'),
     panel:   $('#panelMusica'),
-    hueco:   $('#spotifyHueco'),
+    hueco:   $('#spotifyHueco'),   // el id se queda: es el hueco del embed
 
     tapa:    $('#cancionTapa'),
     nombre:  $('#cancionNombre'),
@@ -59,19 +58,17 @@
 
   el.enlace.href = 'https://open.spotify.com/playlist/' + CFG.SPOTIFY_PLAYLIST;
 
-  let control   = null;
+  let player    = null;
   let listo     = false;
   let sonando   = false;
   let pendiente = false;    // se pidió sonar antes de que el reproductor cargara
 
-  let canciones = [];       // la lista, si la función respondió
+  let canciones = [];
   let indice    = 0;
-  let duracion  = 0;
-  let posicion  = 0;
-  let uriPintada = null;
+  let duracion  = 0;        // ms
+  let posicion  = 0;        // ms
   let arrastrando = false;
-  let relevo  = null;       // temporizador que encadena la canción siguiente
-  let cambioEn = 0;         // cuándo se cambió de canción por última vez
+  let reloj_ = null;        // el que refresca la barra mientras suena
 
   const conLista = () => canciones.length > 0;
 
@@ -85,66 +82,98 @@
     return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   };
 
-  /* ------------------------------------------------- carátula y respaldo --
-     El oEmbed público de Spotify sí acepta peticiones de otros dominios. De
-     ahí sale la portada, y también el nombre cuando no hay lista. La URL se
-     arma con el tipo que trae la propia URI (`spotify:track:…`), porque dando
-     por hecho que siempre es una canción, un día no lo es y la consulta falla
-     entera: ahí está el "Sonando" sin portada.                               */
+  /* --------------------------------------------------------- la carátula --
+     El oEmbed público de Spotify sí acepta peticiones de otros dominios: de
+     ahí sale la portada. La URL se arma con el tipo que trae la propia URI
+     (`spotify:track:…`), porque dando por hecho que siempre es una canción,
+     un día no lo es y la consulta falla entera.                             */
   const consultado = new Map();
 
-  async function pedirOEmbed(uri) {
+  async function pedirTapa(uri) {
     if (consultado.has(uri)) return consultado.get(uri);
 
     const [, tipo, id] = uri.split(':');
     const url = `https://open.spotify.com/oembed?url=https://open.spotify.com/${tipo}/${id}`;
-    let datos = { titulo: '', tapa: '' };
+    let tapa = '';
     try {
       const j = await fetch(url).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)));
-      datos = { titulo: j.title || '', tapa: j.thumbnail_url || '' };
+      tapa = j.thumbnail_url || '';
     } catch (err) {
-      console.info('Spotify no supo decirme qué es', uri, '·', err.message);
+      console.info('Spotify no supo darme la portada de', uri, '·', err.message);
     }
-    consultado.set(uri, datos);
-    return datos;
+    consultado.set(uri, tapa);
+    return tapa;
   }
 
-  /* ---------------------------------------------------- nombre en pantalla */
-  async function pintarCancion(uri) {
-    if (uri === uriPintada) return;
-    uriPintada = uri;
+  /* ------------------------------------------------- buscar en YouTube ----
+     Una canción, un vídeo. Buscarlo tarda entre uno y dos segundos, así que:
+       · se guarda en la propia entrada de la lista, para no volver a
+         preguntar al cambiar de canción y volver;
+       · se guarda también en el teléfono (localStorage, por uri de Spotify),
+         y la próxima visita la primera canción suena sin esperar;
+       · la siguiente se busca mientras suena la actual (ver precargar).   */
+  const LLAVE_VIDEOS = 'patico:videos';
+  let guardados = {};
+  try { guardados = JSON.parse(localStorage.getItem(LLAVE_VIDEOS)) || {}; } catch { /* sin caché */ }
 
-    // Con lista, el nombre es inmediato y fiable; sin ella hay que preguntar.
-    const deLista = conLista() ? canciones[indice] : null;
-    el.nombre.textContent  = deLista ? deLista.titulo : 'Sonando';
-    el.artista.textContent = deLista ? deLista.artista : '';
+  function guardarVideo(uri, id) {
+    guardados[uri] = id;
+    try { localStorage.setItem(LLAVE_VIDEOS, JSON.stringify(guardados)); } catch { /* lleno o privado */ }
+  }
+
+  const buscando = new Map();   // uri -> promesa, para no buscar dos veces lo mismo a la vez
+
+  function videoDe(i) {
+    const c = canciones[i];
+    if (!c) return Promise.resolve(null);
+    if (c.video !== undefined) return Promise.resolve(c.video);   // null incluido: ya se buscó
+    if (guardados[c.uri]) { c.video = guardados[c.uri]; return Promise.resolve(c.video); }
+    if (buscando.has(c.uri)) return buscando.get(c.uri);
+
+    const consulta = `${c.titulo} ${c.artista}`.trim();
+    const p = fetch(`/api/youtube?q=${encodeURIComponent(consulta)}&d=${c.duracion || 0}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('estado ' + r.status)))
+      .then(j => {
+        c.video = j.id || null;
+        if (c.video) guardarVideo(c.uri, c.video);
+        return c.video;
+      })
+      .catch(err => {
+        console.info('Sin vídeo para', consulta, '·', err.message);
+        c.video = null;
+        return null;
+      })
+      .finally(() => buscando.delete(c.uri));
+    buscando.set(c.uri, p);
+    return p;
+  }
+
+  // La de después (y la de antes) quedan buscadas mientras suena ésta: así
+  // "siguiente" no espera a la red.
+  function precargar() {
+    if (!conLista()) return;
+    videoDe((indice + 1) % canciones.length);
+    videoDe((indice - 1 + canciones.length) % canciones.length);
+  }
+
+  /* ------------------------------------------------------------ pintar -- */
+  async function pintarCancion() {
+    const c = canciones[indice];
+    if (!c) return;
+
+    el.nombre.textContent  = c.titulo || 'Sonando';
+    el.artista.textContent = c.artista || '';
     el.artista.hidden = !el.artista.textContent;
+    el.boton.title = el.nombre.textContent;
     el.tapa.hidden = true;
     marcarEnLista();
     pintar();
 
-    if (!uri) return;
-    const { titulo, tapa } = await pedirOEmbed(uri);
-    if (uri !== uriPintada) return;      // ya cambió de canción
-
-    if (!deLista && titulo) {
-      // Sin lista, lo que suena es la playlist entera y Spotify informa de
-      // ella, no de la canción. Poner ahí el nombre de la lista haría creer
-      // que la canción se llama así: se dice lo que es y punto.
-      if (/:(track|episode):/.test(uri)) {
-        el.nombre.textContent = titulo;
-      } else {
-        el.nombre.textContent = 'Sonando';
-        el.artista.textContent = 'de la lista ' + titulo;
-        el.artista.hidden = false;
-      }
-    }
-    el.boton.title = el.nombre.textContent;
+    const tapa = await pedirTapa(c.uri);
+    if (canciones[indice] !== c) return;            // ya cambió de canción
     if (tapa) { el.tapa.src = tapa; el.tapa.hidden = false; }
-    pintar();
   }
 
-  /* ------------------------------------------------------------ pintar -- */
   function pintar() {
     el.caja.dataset.sonando = sonando ? 'si' : 'no';
 
@@ -163,15 +192,11 @@
     }
     el.tActual.textContent = reloj(posicion);
     el.tTotal.textContent  = reloj(duracion);
+  }
 
-    // Los adelantos duran de 15 a 30 s y empiezan por el medio. Si dura más,
-    // hay sesión de Spotify y suena entera: entonces sobra el aviso.
-    const esAdelanto = duracion > 0 && duracion <= 40000;
-    el.aviso.hidden = !esAdelanto;
-    if (esAdelanto) {
-      el.aviso.textContent = `Adelanto de ${Math.round(duracion / 1000)} s, y empieza por el ` +
-                             `medio. Ábrela en Spotify para oírla entera.`;
-    }
+  function avisar(texto) {
+    el.aviso.textContent = texto || '';
+    el.aviso.hidden = !texto;
   }
 
   /* ----------------------------------------------------- lista desplegable */
@@ -198,7 +223,7 @@
     });
   }
 
-  /* ------------------------------------------------- carga del embed ----- */
+  /* ------------------------------------------------------- carga inicial -- */
   async function pedirLista() {
     try {
       const r = await fetch('/api/playlist?id=' + CFG.SPOTIFY_PLAYLIST);
@@ -207,105 +232,232 @@
       canciones = Array.isArray(datos.canciones) ? datos.canciones : [];
     } catch (err) {
       canciones = [];
-      console.info('Sin lista de canciones, se usa la playlist entera:', err.message);
+      console.info('No pude leer la lista de canciones:', err.message);
     }
+    leidaEn = Date.now();
     el.caja.classList.toggle('sin-lista', !conLista());
     if (conLista()) pintarLista();
+    else {
+      el.nombre.textContent = 'La lista no cargó';
+      avisar('No pude leer la playlist. Ábrela en Spotify con el enlace de abajo.');
+      el.estado.textContent = 'sin música';
+    }
   }
 
-  function arrancarEmbed(API) {
-    // Con lista se carga canción a canción; sin ella, la playlist del tirón.
-    const uri = conLista() ? canciones[0].uri : 'spotify:playlist:' + CFG.SPOTIFY_PLAYLIST;
+  /* -------------------------------------------------- la lista se refresca --
+     La playlist es de verdad: si añades una canción en Spotify, tiene que
+     aparecer aquí. Al cargar la página ya se lee, pero eso deja fuera el caso
+     de tenerla abierta mientras añades. Así que se vuelve a leer al volver a
+     la pestaña y al dar la vuelta completa a la lista.
 
-    API.createController(
-      el.hueco,
-      { uri, width: '100%', height: conLista() ? 80 : 352 },
-      (ctrl) => {
-        control = ctrl;
-        listo = true;
+     Al fusionar se conserva por `uri` el vídeo de YouTube ya resuelto —si no,
+     cada refresco volvería a buscarlos todos— y la canción que está sonando
+     se sigue por su uri, no por su número: al añadir una canción por el medio
+     los números bailan.                                                      */
+  let leidaEn = 0;
+  let refrescando = false;
 
-        ctrl.addListener('playback_update', (e) => {
-          const d = e.data || {};
-          sonando  = !d.isPaused;
-          duracion = d.duration || 0;
-          posicion = d.position || 0;
+  async function refrescarLista(forzar) {
+    if (refrescando || !conLista()) return;
+    // Sin freno, cambiar de pestaña diez veces son diez lecturas seguidas. Al
+    // dar la vuelta a la lista sí interesa mirar sin esperar.
+    if (!forzar && Date.now() - leidaEn < 60000) return;
+    refrescando = true;
 
-          if (d.playingURI) pintarCancion(d.playingURI);
-          programarRelevo();
+    try {
+      // no-store, y con marca de tiempo para saltarse también el caché de la
+      // CDN: aquí el sentido de la petición es traer lo último de todo.
+      const r = await fetch(`/api/playlist?id=${CFG.SPOTIFY_PLAYLIST}&t=${Date.now()}`,
+                            { cache: 'no-store' });
+      if (!r.ok) throw new Error('estado ' + r.status);
+      const datos = await r.json();
+      const nuevas = Array.isArray(datos.canciones) ? datos.canciones : [];
+      if (!nuevas.length) return;
+
+      const sonandoUri = canciones[indice] && canciones[indice].uri;
+      const yaBuscado = new Map(canciones.map(c => [c.uri, c.video]));
+      nuevas.forEach(c => { if (yaBuscado.has(c.uri)) c.video = yaBuscado.get(c.uri); });
+
+      const cambio = nuevas.length !== canciones.length ||
+                     nuevas.some((c, i) => c.uri !== canciones[i].uri);
+      canciones = nuevas;
+
+      const donde = canciones.findIndex(c => c.uri === sonandoUri);
+      indice = donde < 0 ? 0 : donde;
+
+      pintarLista();
+      if (cambio) console.info('La playlist cambió:', canciones.length, 'canciones');
+    } catch (err) {
+      console.info('No pude refrescar la lista:', err.message);
+    } finally {
+      leidaEn = Date.now();
+      refrescando = false;
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refrescarLista();
+  });
+
+  /* ------------------------------------------------ el reproductor -------
+     La API de YouTube exige un elemento al que sustituir por el iframe, y
+     avisa por un global cuando está lista.                                 */
+  function arrancarPlayer() {
+    if (!conLista()) return;
+
+    const hueco = document.createElement('div');
+    hueco.id = 'ytHueco';
+    el.hueco.appendChild(hueco);
+
+    player = new YT.Player('ytHueco', {
+      width: '100%', height: 220,
+      playerVars: {
+        // controls:0 porque el mando es el nuestro; playsinline para que en
+        // el móvil no se abra a pantalla completa y se lleve al usuario.
+        controls: 0, disablekb: 1, playsinline: 1, rel: 0,
+        modestbranding: 1, iv_load_policy: 3, origin: location.origin
+      },
+      events: {
+        onReady: async () => {
+          listo = true;
+          await cargar(indice, false);
+          if (pendiente) { pendiente = false; arrancar(); }
           pintar();
-        });
-
-        if (conLista()) pintarCancion(canciones[0].uri);
-        if (pendiente) { pendiente = false; arrancar(); }
-        pintar();
+          precargar();
+        },
+        onStateChange: e => {
+          sonando = e.data === YT.PlayerState.PLAYING;
+          if (sonando) {
+            duracion = (player.getDuration() || 0) * 1000;
+            avisar('');
+            // Ya sonó una vez: el vídeo de respaldo se puede volver a esconder.
+            clearTimeout(vigia);
+            el.caja.classList.remove('con-video');
+            precargar();
+          }
+          // ENDED: encadena la siguiente. YouTube sí avisa del final, así que
+          // aquí no hace falta el temporizador que necesitaba Spotify.
+          if (e.data === YT.PlayerState.ENDED) siguiente(true);
+          marcha();
+          pintar();
+        },
+        onError: () => {
+          // Vídeo caído, privado o bloqueado en el país: a la siguiente.
+          avisar('Esa canción no se puede reproducir aquí. Paso a la siguiente.');
+          setTimeout(() => siguiente(true), 900);
+        }
       }
-    );
+    });
   }
 
   const script = document.createElement('script');
-  script.src = 'https://open.spotify.com/embed/iframe-api/v1';
+  script.src = 'https://www.youtube.com/iframe_api';
   script.async = true;
-  window.onSpotifyIframeApiReady = (API) => { pedirLista().then(() => arrancarEmbed(API)); };
-  document.head.appendChild(script);
+  window.onYouTubeIframeAPIReady = arrancarPlayer;
+  pedirLista().then(() => document.head.appendChild(script));
 
-  /* ---------------------------------------------------- pasar de canción --
-     Spotify no avisa de que una canción acabó: el cursor se queda clavado en
-     el final y el reproductor sigue diciendo que suena. Así que se cuenta el
-     tiempo que le queda y se salta al cumplirse; si ya está en el final, se
-     salta enseguida. El plazo se recalcula en cada aviso de posición, de modo
-     que una pausa o un arrastre lo corrigen solos.                          */
-  function programarRelevo() {
-    clearTimeout(relevo);
-    if (!conLista() || !sonando || !duracion) return;
-
-    // Justo después de cambiar de canción pueden llegar avisos rezagados de la
-    // anterior, con su duración y su final: sin esta espera encadenarían un
-    // salto de más.
-    if (Date.now() - cambioEn < 1500) return;
-
-    const eraIndice = indice;
-    relevo = setTimeout(() => {
-      if (indice === eraIndice && sonando) siguiente(true);
-    }, Math.max(duracion - posicion, 0) + 350);
+  /* La barra sólo se refresca mientras suena: un intervalo corriendo con el
+     reproductor en pausa es gasto de batería para nada. */
+  function marcha() {
+    clearInterval(reloj_);
+    if (!sonando) return;
+    reloj_ = setInterval(() => {
+      if (!player || arrastrando) return;
+      posicion = (player.getCurrentTime() || 0) * 1000;
+      duracion = (player.getDuration() || 0) * 1000;
+      pintar();
+    }, 250);
   }
 
   /* ------------------------------------------------------------ control -- */
+  // Cuántas canciones seguidas han fallado. Sin esto, una playlist que no
+  // resuelve ninguna se pasaría la vida saltando de la última a la primera.
+  let fallos = 0;
+
+  function cargar(i, sonar) {
+    if (!player || !conLista()) return;
+    const destino = (i + canciones.length) % canciones.length;
+    indice = destino;
+    posicion = 0;
+    duracion = canciones[destino].duracion || 0;
+    pintarCancion();
+
+    // Si el vídeo ya se conoce (lo normal, gracias a precargar), se pone en
+    // el acto, dentro del mismo toque: el iPhone sólo deja sonar lo que nace
+    // de un toque, y una espera de red por medio lo puede romper.
+    const c = canciones[destino];
+    if (c.video !== undefined) return poner(destino, c.video, sonar);
+    return videoDe(destino).then(video => {
+      if (indice === destino) poner(destino, video, sonar);   // si no, ya se cambió de canción
+    });
+  }
+
+  function poner(destino, video, sonar) {
+    if (!video) {
+      if (++fallos >= canciones.length) {
+        fallos = 0;
+        sonando = false; marcha();
+        avisar('No encontré ninguna de estas canciones. Ábrelas en Spotify con el enlace de abajo.');
+        pintar();
+        return;
+      }
+      avisar('No encontré esta canción. Paso a la siguiente.');
+      setTimeout(() => siguiente(true), 900);
+      return;
+    }
+    fallos = 0;
+    if (sonar) { player.loadVideoById(video); vigilar(); }
+    else player.cueVideoById(video);
+  }
+
+  /* El vigía. Algunos iPhone no dejan que un vídeo de otra web (el de
+     YouTube va en un iframe) empiece a sonar por un botón nuestro: sólo con
+     un toque sobre el propio vídeo. Si a los pocos segundos de pedir que
+     suene no está sonando ni cargando, se enseña el vídeo en el panel para
+     tocarlo una vez. Después ya obedece a nuestros botones, y se esconde. */
+  let vigia = null;
+  function vigilar() {
+    clearTimeout(vigia);
+    vigia = setTimeout(() => {
+      if (!player || !player.getPlayerState) return;
+      const st = player.getPlayerState();
+      if (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING) return;
+      el.caja.classList.add('con-video');
+      avisar('Toca el vídeo una vez para que empiece a sonar.');
+    }, 3000);
+  }
+
   function arrancar() {
-    if (!control) { pendiente = true; return; }
-    try { control.play(); } catch (err) { console.warn('Spotify:', err); }
+    if (!player || !listo) { pendiente = true; return; }
+    player.playVideo();
+    vigilar();
   }
 
   function alternar() {
-    if (!control) { pendiente = true; return; }
-    control.togglePlay();
+    if (!player || !listo) { pendiente = true; return; }
+    if (sonando) player.pauseVideo();
+    else { player.playVideo(); vigilar(); }
   }
 
-  // Cambiar de canción: se carga la nueva en el reproductor y se le da al
-  // play. Hace falta un respiro entre las dos cosas, porque el embed tarda un
-  // instante en tener lista la canción nueva.
-  function ir(i, seguirSonando = true) {
-    if (!conLista() || !control) return;
-    clearTimeout(relevo);
-    cambioEn = Date.now();
-    indice = (i + canciones.length) % canciones.length;
-    duracion = posicion = 0;
+  const ir = (i, sonar = true) => cargar(i, sonar);
 
-    control.loadUri(canciones[indice].uri);
-    pintarCancion(canciones[indice].uri);
-    if (seguirSonando) setTimeout(() => { try { control.play(); } catch {} }, 420);
+  // Al llegar al final se relee la playlist antes de volver a la primera: es
+  // el momento natural para enterarse de lo que se ha añadido mientras sonaba.
+  async function siguiente(auto = false) {
+    const sonar = auto || sonando;
+    if (indice + 1 >= canciones.length) await refrescarLista(true);
+    return ir(indice + 1, sonar);
   }
-
-  const siguiente = (auto = false) => ir(indice + 1, auto || sonando);
   const anterior  = () => {
     // Como en cualquier reproductor: si ya sonó un rato, vuelve al principio.
-    if (posicion > 3000) { control.restart(); return; }
+    if (posicion > 3000) { player.seekTo(0, true); return; }
     ir(indice - 1, sonando);
   };
 
   el.btnPlay.addEventListener('click', alternar);
   el.btnAntes.addEventListener('click', anterior);
   el.btnDespues.addEventListener('click', () => siguiente(false));
-  el.btnReiniciar.addEventListener('click', () => control && control.restart());
+  el.btnReiniciar.addEventListener('click', () => player && player.seekTo(0, true));
 
   el.btnLista.addEventListener('click', () => {
     const abierta = el.caja.classList.toggle('con-lista');
@@ -337,7 +489,7 @@
     if (!arrastrando) return;
     arrastrando = false;
     el.barra.classList.remove('tocando');
-    if (control && duracion) control.seek(fraccion(ev) * duracion / 1000);  // seek va en segundos
+    if (player && duracion) player.seekTo(fraccion(ev) * duracion / 1000, true);
   });
   el.barra.addEventListener('pointercancel', () => {
     arrastrando = false;
@@ -345,20 +497,17 @@
   });
 
   el.barra.addEventListener('keydown', ev => {
-    if (!control || !duracion) return;
+    if (!player || !duracion) return;
     const salto = ev.key === 'ArrowRight' ? 5000 : ev.key === 'ArrowLeft' ? -5000 : 0;
     if (!salto) return;
     ev.preventDefault();
-    control.seek(Math.min(Math.max(posicion + salto, 0), duracion) / 1000);
+    player.seekTo(Math.min(Math.max(posicion + salto, 0), duracion) / 1000, true);
   });
 
   /* -------------------------------------------------------- abrir panel -- */
   el.boton.addEventListener('click', () => {
     const abierto = el.caja.classList.toggle('abierta');
     el.boton.setAttribute('aria-expanded', String(abierto));
-    // Sin lista, el reproductor de Spotify es lo único que enseña la canción
-    // y deja saltar: se abre solo, que si no el panel se queda a medias.
-    if (abierto && !conLista()) el.caja.classList.add('con-lista');
     if (abierto && !sonando) arrancar();
   });
 
