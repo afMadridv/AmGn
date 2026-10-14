@@ -43,7 +43,11 @@ async function leerPlaylist(id) {
   return { nombre: entidad?.name || '', canciones };
 }
 
+const { dejar } = require('./_limite');
+
 module.exports = async (req, res) => {
+  if (!dejar(req, res, 'playlist', 30)) return;
+
   // Sólo se aceptan ids con la forma de un id de Spotify: nada de meter rutas
   // raras en la URL que se pide.
   const crudo = (req.query && req.query.id) ||

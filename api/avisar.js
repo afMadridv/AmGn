@@ -254,7 +254,11 @@ async function redactar(ev, correo, token) {
 }
 
 /* -------------------------------------------------------------- la función */
+const { dejar } = require('./_limite');
+
 module.exports = async (req, res) => {
+  if (!dejar(req, res, 'avisar', 30)) return;
+
   const privada = (process.env.VAPID_PRIVATE_KEY || '').trim();
   if (!privada) {
     res.status(503).json({ error: 'Faltan las claves de los avisos (VAPID_PRIVATE_KEY)' });

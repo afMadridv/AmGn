@@ -162,7 +162,11 @@ async function buscar(consulta, segObjetivo) {
   return porPagina(consulta, segObjetivo);
 }
 
+const { dejar } = require('./_limite');
+
 module.exports = async (req, res) => {
+  if (!dejar(req, res, 'youtube', 60)) return;
+
   const params = (req.query && Object.keys(req.query).length)
     ? req.query
     : Object.fromEntries(new URL(req.url, 'http://x').searchParams);

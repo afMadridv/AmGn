@@ -278,13 +278,6 @@
       if (!data || !data.length) throw new Error(SIN_PERMISO);
     },
 
-    // Ella no tiene cuenta: el corazón se pone con una función del servidor
-    // que sólo sabe hacer eso. Ver dar_corazon() en sql/instalar.sql.
-    async darCorazon(id) {
-      const { error } = await sb.rpc('dar_corazon', { flor_id: id });
-      if (error) throw error;
-    },
-
     suscribir(cb) {
       alCambiar = cb;
       sb.channel('jardin')
@@ -408,8 +401,8 @@
     },
 
     /* ------------------------------------------------------- la galería --
-       Colgar no pide cuenta: el enlace es de ella. Quitar sí, y de eso se
-       encarga el RLS. El corazón va por función, como en las notas.        */
+       Colgar, quitar y dar corazón piden la sesión de la casa: lo decide el
+       RLS (sql/instalar.sql, 2c). El corazón va por la tabla `corazones`.  */
     arte: {
       async listar() {
         const { data, error } = await sb
@@ -419,6 +412,9 @@
       },
 
       async publicar({ titulo, descripcion, imagen }) {
+        // Sin sesión el RLS rechazaría la subida con un mensaje técnico; mejor
+        // decirlo claro antes de gastar datos en subir la imagen.
+        if (!await Remoto.sesion()) throw new Error(SIN_SESION);
         const nombre = Date.now().toString(36) + '-' +
                        Math.random().toString(36).slice(2, 8) + '.' +
                        extensionDe(imagen.type);
@@ -456,13 +452,6 @@
           const { error: err } = await sb.storage.from('galeria').remove([nombre]);
           if (err) console.info('El dibujo se quitó, pero su archivo sigue ahí:', err.message);
         }
-      },
-
-      // El corazón, igual que en las notas: por función, para no abrirle un
-      // UPDATE a nadie. Se da una vez y no se quita.
-      async darCorazon(id) {
-        const { error } = await sb.rpc('dar_corazon_obra', { obra_id: id });
-        if (error) throw error;
       },
 
       suscribir(cb) {
@@ -539,12 +528,6 @@
       this._guardar(this._leer().filter(f => f.id !== id));
     },
 
-    async darCorazon(id) {
-      const todas = this._leer();
-      const f = todas.find(x => x.id === id);
-      if (f) { f.corazon = true; this._guardar(todas); }
-    },
-
     suscribir(cb) {
       alCambiar = cb;
       // Sincroniza entre pestañas del mismo navegador.
@@ -583,12 +566,6 @@
       },
 
       async borrar(id) { this._guardar(this._leer().filter(o => o.id !== id)); },
-
-      async darCorazon(id) {
-        const t = this._leer();
-        const o = t.find(x => x.id === id);
-        if (o) { o.corazon = true; this._guardar(t); }
-      },
 
       suscribir() {}
     },
@@ -685,7 +662,6 @@
     listar:    ()   => impl.listar(),
     sembrar:   f    => impl.sembrar(f),
     subirFoto: a    => impl.subirFoto(a),
-    darCorazon: id  => impl.darCorazon(id),
     borrar:    id   => impl.borrar(id),
     suscribir: cb   => impl.suscribir(cb),
     entrar:    (e,p,m) => impl.entrar(e, p, m),   // m: mantener sesión

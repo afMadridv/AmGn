@@ -3,14 +3,12 @@
    --------------------------------------------------------------------------
    Quién puede qué:
 
-     · Cualquiera que tenga el enlace MIRA y CUELGA, sin cuenta ni contraseña:
-       el enlace es de ella y sólo ella lo tiene, así que pedirle que inicie
-       sesión para dibujar en su propia galería sobra.
-     · QUITAR un dibujo sí pide la sesión del jardín. Es la única puerta que
-       queda cerrada, para que nadie pueda vaciarle la galería de un golpe.
-     · El CORAZÓN funciona como el de las notas, pero al revés: allí ella se
-       lo da a lo que él escribe, aquí él se lo da a lo que ella dibuja. Se da
-       una vez y no se quita, y es lo único que se le hace a un dibujo.
+     · MIRAR no pide cuenta.
+     · COLGAR y QUITAR piden la sesión del jardín (la de la puerta). Colgar
+       estuvo abierto sin cuenta, pero con la clave pública en el repo un bot
+       podía llenarle la galería saltándose la app (SECURITY.md, punto 12).
+     · El CORAZÓN y los comentarios van firmados, igual que en las notas
+       (js/social.js).
 
    Quien manda de verdad es el RLS de sql/instalar.sql: aquí sólo se decide
    qué botones se enseñan.

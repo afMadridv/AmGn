@@ -499,7 +499,12 @@
 
 <div class="brindis" id="brindis" role="status" aria-live="polite"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<!-- `integrity`: si el archivo del CDN cambiara un solo byte, el navegador no
+     lo ejecuta. Al subir de versión hay que recalcular el hash:
+     curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"
+        integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug"
+        crossorigin="anonymous"></script>
 <script src="js/config.js"></script>
 <script src="js/flores-svg.js"></script>
 <script src="js/datos.js"></script>

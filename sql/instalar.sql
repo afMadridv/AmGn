@@ -133,37 +133,22 @@ create policy "arranca el jardinero"
   using (es_el_jardinero());
 
 -- --------------------------------------------------------------------------
--- 2b. El corazón de ella
---     Ella entra sin cuenta, así que no puede escribir en la tabla. En vez de
---     abrirle un UPDATE (con el que podría borrar el texto de una nota), se
---     le da una función que sólo sabe hacer una cosa: poner el corazón. No
---     puede quitarlo ni tocar nada más.
+-- 2b. El corazón, por funciones: RETIRADO
+--     Cuando ella entraba sin cuenta, el corazón se ponía con dar_corazon() y
+--     dar_corazon_obra(), abiertas a `anon`: cualquiera con la clave pública
+--     podía marcar notas y dibujos. Hoy los dos tienen cuenta y el corazón va
+--     por la tabla `corazones` (sección 2d), firmado y con RLS. Se borran.
+--     Ver SECURITY.md, punto 8.
 -- --------------------------------------------------------------------------
-create or replace function public.dar_corazon(flor_id uuid)
-returns void
-language sql
-security definer
-set search_path = public
-as $$
-  update public.flores set corazon = true where id = flor_id;
-$$;
-
-revoke all on function public.dar_corazon(uuid) from public;
-grant execute on function public.dar_corazon(uuid) to anon, authenticated;
+drop function if exists public.dar_corazon(uuid);
+drop function if exists public.dar_corazon_obra(uuid);
 
 -- --------------------------------------------------------------------------
 -- 2c. La galería de arte
---     Sus dibujos. Cualquiera que tenga el enlace los ve Y los cuelga, sin
---     cuenta: el enlace es de ella y sólo ella lo tiene, así que pedirle una
---     contraseña para dibujar en su propia galería sobra.
---
---     Lo que sí queda cerrado es BORRAR y COMENTAR, que piden tu sesión. Así,
---     si el enlace se le escapara a alguien, lo peor que podría hacer es
---     colgar algo —que tú quitas en dos toques—, nunca vaciarle la galería.
---
---     OJO: la clave pública está en el repo de GitHub. Si el repo es público,
---     cualquiera que lo encuentre puede colgar dibujos. Ponlo en privado
---     (Settings → General → Change visibility) y esto deja de ser un problema.
+--     Sus dibujos. Se ven sin cuenta, pero colgar, borrar y comentar piden la
+--     sesión de la casa. Antes colgar estaba abierto a `anon` (para llegar a
+--     la galería ya hay que entrar con usuario, pero la clave pública está en
+--     el repo y un bot podía llenarla saltándose la app). SECURITY.md, punto 12.
 -- --------------------------------------------------------------------------
 create table if not exists public.obras (
   id          uuid primary key default gen_random_uuid(),
@@ -199,20 +184,6 @@ alter table public.obras drop column if exists marco;
 
 -- A sus dibujos se les da corazón y nada más: la nota escrita se quitó.
 alter table public.obras drop column if exists comentario;
-
--- El corazón de sus dibujos, igual que el de las notas: se da una vez y no se
--- puede quitar. Va por función para no tener que abrirle un UPDATE a nadie.
-create or replace function public.dar_corazon_obra(obra_id uuid)
-returns void
-language sql
-security definer
-set search_path = public
-as $$
-  update public.obras set corazon = true where id = obra_id;
-$$;
-
-revoke all on function public.dar_corazon_obra(uuid) from public;
-grant execute on function public.dar_corazon_obra(uuid) to anon, authenticated;
 
 -- Las políticas no pueden mirar `auth.users` por su cuenta: esa tabla no la
 -- lee un usuario normal. Esta función sí, y sólo contesta sí o no.
@@ -250,11 +221,11 @@ create policy "arte a la vista"
 
 create policy "arte lo cuelga la casa"
   on public.obras for insert
-  to anon, authenticated
-  with check (true);
+  to authenticated
+  with check (es_de_la_casa());
 
 -- No hay política de UPDATE a propósito: a un dibujo colgado sólo se le da
--- corazón, y eso pasa por `dar_corazon_obra()`. Nadie necesita poder cambiar
+-- corazón, y eso va por la tabla `corazones`. Nadie necesita poder cambiar
 -- una fila entera.
 
 create policy "arte lo quita la casa"
@@ -313,8 +284,11 @@ drop policy if exists "corazones a la vista"     on public.corazones;
 drop policy if exists "da corazon la casa"       on public.corazones;
 drop policy if exists "quita su corazon"         on public.corazones;
 
+-- Sólo los lee la casa: la columna `autor` es el correo, y leídos sin
+-- cuenta dejaban ver los dos correos a cualquiera. La app siempre los lee
+-- con sesión (para llegar al jardín hay que entrar). SECURITY.md, punto 17.
 create policy "comentarios a la vista"
-  on public.comentarios for select to anon, authenticated using (true);
+  on public.comentarios for select to authenticated using (es_de_la_casa());
 
 -- `autor = auth.jwt() ->> 'email'` es lo que hace fiable la firma.
 create policy "comenta la casa"
@@ -326,7 +300,7 @@ create policy "borra su comentario"
   using (autor = auth.jwt() ->> 'email');
 
 create policy "corazones a la vista"
-  on public.corazones for select to anon, authenticated using (true);
+  on public.corazones for select to authenticated using (es_de_la_casa());
 
 create policy "da corazon la casa"
   on public.corazones for insert to authenticated
@@ -434,11 +408,11 @@ create policy "avisos los apaga la casa"
 -- --------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('notas', 'notas', true, 8388608,
-        array['image/*'])
+        array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 on conflict (id) do update
   set public = true,
       file_size_limit = 8388608,
-      allowed_mime_types = array['image/*'];
+      allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 -- Estas fotos van dentro de las notas, así que las sube quien siembra: el
 -- mismo permiso que la tabla flores. Si aquí pusiera es_de_la_casa(), el otro
@@ -471,11 +445,11 @@ create policy "fotos las quita el jardinero"
 -- --------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('galeria', 'galeria', true, 10485760,
-        array['image/*'])
+        array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 on conflict (id) do update
   set public = true,
       file_size_limit = 10485760,
-      allowed_mime_types = array['image/*'];
+      allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 drop policy if exists "galeria a la vista"      on storage.objects;
 drop policy if exists "galeria la cuelga la casa" on storage.objects;
@@ -488,8 +462,8 @@ create policy "galeria a la vista"
 
 create policy "galeria la cuelga la casa"
   on storage.objects for insert
-  to anon, authenticated
-  with check (bucket_id = 'galeria');
+  to authenticated
+  with check (bucket_id = 'galeria' and es_de_la_casa());
 
 create policy "galeria la quita la casa"
   on storage.objects for delete
@@ -524,7 +498,9 @@ select
     where schemaname = 'public' and tablename = 'obras')                as politicas_galeria,
   (select count(*) from auth.users)                                     as usuarios,
   (select count(*) from pg_proc
-    where proname in ('dar_corazon', 'dar_corazon_obra', 'es_de_la_casa'))as funciones,
+    where proname in ('es_de_la_casa', 'es_el_jardinero'))            as funciones,
+  (select count(*) from pg_proc
+    where proname in ('dar_corazon', 'dar_corazon_obra'))              as funciones_viejas,
   (select count(*) from pg_policies
     where schemaname = 'public'
       and tablename in ('comentarios', 'corazones'))                    as politicas_social,

@@ -10,3 +10,7 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+
+# Secretos: nunca al repo (las claves van en Vercel → Environment Variables)
+.env
+.env.*
