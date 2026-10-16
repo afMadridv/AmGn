@@ -677,6 +677,30 @@
   el.campo.addEventListener('click', seguirToque);
   document.querySelector('.colinas').addEventListener('click', seguirToque);
 
+  /* Para js/disparos.js: el patico se planta donde esté —aunque vaya a medio
+     camino—, se gira hacia un punto (en % del ancho del jardín) y, pasado
+     `ms`, sigue paseando. Mientras camina, `left`, `bottom` y `scale` están
+     en plena transición: se leen sus valores de ese instante y se fijan con
+     duración 0, que es lo que lo deja quieto justo ahí. */
+  function paticoPlantarse(mirarX, ms) {
+    if (!el.patico) return;
+    clearTimeout(paticoTimer);
+    const cs = getComputedStyle(el.patico);
+    const x = parseFloat(cs.left) / el.jardin.offsetWidth * 100;
+    const y = parseFloat(cs.bottom) / el.jardin.offsetHeight * 100;
+    el.patico.style.setProperty('--paso', '0s');
+    el.patico.style.setProperty('--px', x.toFixed(2) + '%');
+    el.patico.style.setProperty('--py', y.toFixed(2) + '%');
+    if (cs.scale && cs.scale !== 'none') el.patico.style.setProperty('--lejos', cs.scale);
+    el.patico.classList.add('quieto');
+    paticoPos = { x, y };
+    if (typeof mirarX === 'number') {
+      el.patico.style.setProperty('--mira', mirarX >= x + 3 ? 1 : -1);
+    }
+    paticoTimer = setTimeout(paticoPasear, ms || 1500);
+  }
+  window.Patico = { plantarse: paticoPlantarse };
+
   paticoPasear();
 
   /* ------------------------------------------------------------- realtime */

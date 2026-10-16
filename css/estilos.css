@@ -1072,6 +1072,81 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
   84%           { opacity: .2;  scale: .85; }
 }
 
+/* ------------------------------------------- disparos (js/disparos.js) ---
+   Los bichos que vuelan se pueden tocar: el patico les dispara. El área de
+   toque es bastante mayor que el bicho (::after), porque un blanco de 25 px
+   que cruza la pantalla es casi imposible de atinar con el dedo. */
+/* cursor: pointer no es por el ratón: Safari en iOS sólo entrega el toque a lo
+   que parece clicable. */
+.bicho { pointer-events: auto; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.bicho::after { content: ''; position: absolute; inset: -70%; border-radius: 50%; }
+/* Alcanzado: se queda quieto en el aire (alas incluidas) y ya no se toca. */
+.bicho.herido, .bicho.herido * { animation-play-state: paused !important; }
+.bicho.herido { pointer-events: none; }
+
+/* La pistolita, en la mano del patico. Se gira con él (--mira) y apunta
+   girando sobre la culata. */
+.pistola {
+  position: absolute;
+  left: 52%; top: 40%;
+  width: 56%;
+  transform-origin: 24% 70%;
+  transform: rotate(var(--apunta, 0deg));
+  opacity: 0;
+  pointer-events: none;
+}
+.pistola.fuera { opacity: 1; }
+.pistola svg { display: block; width: 100%; height: auto; overflow: visible; }
+.pistola-boca { position: absolute; left: 96%; top: 32%; width: 2px; height: 2px; }
+
+/* Efectos sueltos: se centran en su punto con `translate` y se animan con
+   `transform` desde js/disparos.js. Por encima del tinte de la noche (450),
+   que el fogonazo y el fantasma dan luz, no la reciben. */
+.fogonazo, .bala, .estallido, .chispa, .fantasma {
+  position: absolute;
+  translate: -50% -50%;
+  pointer-events: none;
+  z-index: 470;
+}
+.fogonazo {
+  width: 30px; aspect-ratio: 1;
+  background: radial-gradient(circle, #fff 0 16%, #fff1a8 28%, #ffc23a 46%, rgba(255, 120, 40, .85) 60%, transparent 70%);
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+.bala {
+  width: 20px; height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(255, 200, 80, 0), rgba(255, 210, 90, .75) 45%, #fff3c4 80%, #fff);
+  box-shadow: 0 0 6px rgba(255, 220, 120, .8);
+}
+.estallido {
+  width: 40px; aspect-ratio: 1;
+  background: radial-gradient(circle, #fff 0 14%, #ffe066 30%, #ff9f43 48%, transparent 66%);
+  clip-path: polygon(50% 0, 60% 30%, 93% 18%, 72% 45%, 100% 62%, 66% 64%, 70% 98%, 50% 74%, 28% 96%, 33% 63%, 0 58%, 29% 44%, 9% 16%, 40% 30%);
+}
+.chispa {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #fff4b0;
+  box-shadow: 0 0 4px #ffd23f;
+}
+/* El fantasmita: el mismo dibujo del bicho, en blanco luminoso, con su
+   aureola. Es un filtro, pero en un solo elemento y durante dos segundos. */
+.fantasma svg {
+  display: block; width: 100%; height: auto;
+  filter: brightness(0) invert(1) drop-shadow(0 0 4px rgba(255, 255, 255, .95));
+}
+.fantasma.al-reves svg { scale: -1 1; }
+.fantasma::before {
+  content: '';
+  position: absolute;
+  left: 26%; top: -16%;
+  width: 48%; height: 18%;
+  border: 2px solid rgba(255, 232, 140, .95);
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 232, 140, .8);
+}
+
 /* El bicho que se posa en una flor sin leer. */
 .bicho-posado {
   position: absolute;

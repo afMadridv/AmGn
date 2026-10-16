@@ -192,7 +192,8 @@
     sueltos = [];
   }
 
-  function soltar(tipo, i) {
+  // `desdeFuera`: entra por el borde en vez de aparecer a mitad de vuelo.
+  function soltar(tipo, i, desdeFuera) {
     const b = document.createElement('div');
     b.className = 'bicho bicho--' + tipo;
     b.innerHTML = svgBicho(tipo);
@@ -202,7 +203,7 @@
     b.style.setProperty('--vuelo', (16 + Math.random() * 16).toFixed(1) + 's');
     b.style.setProperty('--sube', (2.2 + Math.random() * 2).toFixed(1) + 's');
     b.style.setProperty('--aleteo', (tipo === 'abeja' ? .12 : .34).toFixed(2) + 's');
-    b.style.setProperty('--retraso', (-Math.random() * 18).toFixed(1) + 's');
+    b.style.setProperty('--retraso', desdeFuera ? '0s' : (-Math.random() * 18).toFixed(1) + 's');
     b.style.setProperty('--tam', (0.7 + Math.random() * 0.5).toFixed(2));
     // Cada luciérnaga destella a su ritmo: si fueran todas a la vez parecería
     // un letrero, no un bicho.
@@ -290,5 +291,19 @@
     }, 700);
   }
 
-  window.Bichos = { poblar, posarEn, quitarDe, esNueva, marcarLeida, svgBicho };
+  /* Un bicho abatido (js/disparos.js) deja de contar, y al rato llega otro
+     del mismo tipo entrando por el borde: el jardín no se queda vacío por
+     mucho que se dispare. Si entretanto cambió de día a noche, poblar() ya
+     rehízo los bichos y éste no vuelve. */
+  function abatido(b) {
+    sueltos = sueltos.filter(x => x !== b);
+    const tipo = (b.className.match(/bicho--(\w+)/) || [])[1];
+    if (!DIBUJO[tipo]) return;
+    const deNoche = cielo.dataset.momento === 'noche';
+    setTimeout(() => {
+      if ((cielo.dataset.momento === 'noche') === deNoche) soltar(tipo, 0, true);
+    }, 6000 + Math.random() * 6000);
+  }
+
+  window.Bichos = { poblar, posarEn, quitarDe, esNueva, marcarLeida, svgBicho, abatido };
 })();
