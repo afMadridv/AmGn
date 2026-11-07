@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="331" height="173" viewBox="0 0 331 173">
+  <!-- Piedritas de la tierra en dos tonos; las claras con un brillo. La
+       loseta mide 331×173, dos números que no dividen a los de las otras
+       texturas de la tierra, así las repeticiones no coinciden. -->
+  <ellipse cx="187.5" cy="62.3" rx="2.1" ry="1.6" fill="#c6a888" opacity=".36"/>
+  <ellipse cx="186.9" cy="61.7" rx=".7" ry=".5" fill="#fff" opacity=".25"/>
+  <ellipse cx="2.2" cy="15.8" rx="3.2" ry="2.5" fill="#7d5c42" opacity=".65"/>
+  <ellipse cx="217.0" cy="131.4" rx="3.0" ry="2.3" fill="#c6a888" opacity=".55"/>
+  <ellipse cx="216.2" cy="130.6" rx="1.0" ry=".7" fill="#fff" opacity=".25"/>
+  <ellipse cx="120.9" cy="99.9" rx="4.2" ry="3.2" fill="#c6a888" opacity=".58"/>
+  <ellipse cx="119.8" cy="98.7" rx="1.5" ry="1.0" fill="#fff" opacity=".25"/>
+  <ellipse cx="143.8" cy="113.5" rx="3.1" ry="2.4" fill="#c6a888" opacity=".61"/>
+  <ellipse cx="143.0" cy="112.6" rx="1.1" ry=".7" fill="#fff" opacity=".25"/>
+  <ellipse cx="133.5" cy="15.5" rx="3.0" ry="2.3" fill="#c6a888" opacity=".37"/>
+  <ellipse cx="132.7" cy="14.7" rx="1.1" ry=".7" fill="#fff" opacity=".25"/>
+  <ellipse cx="95.8" cy="158.2" rx="3.2" ry="2.5" fill="#7d5c42" opacity=".43"/>
+  <ellipse cx="120.9" cy="50.9" rx="4.6" ry="3.5" fill="#c6a888" opacity=".54"/>
+  <ellipse cx="119.7" cy="49.7" rx="1.6" ry="1.1" fill="#fff" opacity=".25"/>
+  <ellipse cx="27.3" cy="32.9" rx="3.4" ry="2.6" fill="#c6a888" opacity=".41"/>
+  <ellipse cx="26.4" cy="32.0" rx="1.2" ry=".8" fill="#fff" opacity=".25"/>
+  <ellipse cx="86.8" cy="159.8" rx="2.3" ry="1.7" fill="#c6a888" opacity=".62"/>
+  <ellipse cx="86.2" cy="159.2" rx=".8" ry=".5" fill="#fff" opacity=".25"/>
+  <ellipse cx="53.0" cy="18.4" rx="2.8" ry="2.2" fill="#7d5c42" opacity=".7"/>
+  <ellipse cx="253.6" cy="22.3" rx="3.3" ry="2.5" fill="#c6a888" opacity=".62"/>
+  <ellipse cx="252.7" cy="21.5" rx="1.1" ry=".8" fill="#fff" opacity=".25"/>
+  <ellipse cx="49.4" cy="42.1" rx="2.4" ry="1.8" fill="#7d5c42" opacity=".64"/>
+  <ellipse cx="320.3" cy="64.0" rx="3.4" ry="2.6" fill="#7d5c42" opacity=".67"/>
+  <ellipse cx="212.7" cy="121.4" rx="4.6" ry="3.6" fill="#7d5c42" opacity=".54"/>
+  <ellipse cx="256.8" cy="92.3" rx="5.1" ry="3.9" fill="#c6a888" opacity=".58"/>
+  <ellipse cx="255.4" cy="90.9" rx="1.8" ry="1.2" fill="#fff" opacity=".25"/>
+</svg>

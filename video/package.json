@@ -1,0 +1,24 @@
+{
+  "name": "jardin-reel",
+  "private": true,
+  "description": "Reel de portafolio del jardín, hecho con Remotion",
+  "scripts": {
+    "studio": "remotion studio",
+    "render:reel": "remotion render Reel out/jardin-reel-9x16.mp4",
+    "render:wide": "remotion render Wide out/jardin-16x9.mp4",
+    "render": "npm run render:reel && npm run render:wide",
+    "still": "remotion still"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "@remotion/google-fonts": "4.0.539",
+    "@remotion/transitions": "4.0.539",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.539"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}
