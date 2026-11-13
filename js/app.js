@@ -607,15 +607,17 @@
   const PATICO = { minX: 3, maxX: 90, minY: 3, maxY: 46 };
   let paticoTimer = null;
   let paticoPos = { x: 12, y: 8 };
+  // Mientras juega con el gato (js/gato.js) no pasea por su cuenta.
+  let paticoAtado = false;
 
-  function paticoColocar(x, y, alLlegar) {
+  function paticoColocar(x, y, alLlegar, rapidez = 1) {
     if (!el.patico) return;
     x = Math.min(Math.max(x, PATICO.minX), PATICO.maxX);
     y = Math.min(Math.max(y, PATICO.minY), PATICO.maxY);
 
     const dx = x - paticoPos.x, dy = y - paticoPos.y;
     const viaje = Math.hypot(dx, dy * 1.6);      // subir cuesta más que andar
-    const tiempo = viaje * 0.055 + 0.6;
+    const tiempo = (viaje * 0.055 + 0.6) / rapidez;
 
     // Cuanto más arriba está, más lejos se ve: encoge y pasa por detrás de
     // las flores que quedan más abajo que él.
@@ -623,6 +625,7 @@
 
     clearTimeout(paticoTimer);
     el.patico.classList.remove('quieto');
+    el.patico.classList.toggle('corriendo', rapidez > 1.4);
     if (Math.abs(dx) > 0.6) el.patico.style.setProperty('--mira', dx > 0 ? 1 : -1);
     el.patico.style.setProperty('--paso', tiempo.toFixed(2) + 's');
     el.patico.style.setProperty('--px', x.toFixed(1) + '%');
@@ -633,8 +636,9 @@
 
     paticoTimer = setTimeout(() => {
       el.patico.classList.add('quieto');
+      el.patico.classList.remove('corriendo');
       if (alLlegar) alLlegar();
-      paticoTimer = setTimeout(paticoPasear, 900 + Math.random() * 2600);
+      if (!paticoAtado) paticoTimer = setTimeout(paticoPasear, 900 + Math.random() * 2600);
     }, tiempo * 1000);
   }
 
@@ -697,9 +701,29 @@
     if (typeof mirarX === 'number') {
       el.patico.style.setProperty('--mira', mirarX >= x + 3 ? 1 : -1);
     }
-    paticoTimer = setTimeout(paticoPasear, ms || 1500);
+    if (!paticoAtado) paticoTimer = setTimeout(paticoPasear, ms || 1500);
   }
-  window.Patico = { plantarse: paticoPlantarse };
+
+  // Dónde está ahora mismo, aunque vaya a medio camino (en % del jardín).
+  function paticoDonde() {
+    const cs = getComputedStyle(el.patico);
+    return { x: parseFloat(cs.left) / el.jardin.offsetWidth * 100,
+             y: parseFloat(cs.bottom) / el.jardin.offsetHeight * 100 };
+  }
+
+  // Para el juego del gato: lo ata (deja de pasear solo) y lo suelta.
+  function paticoOcupar(si) {
+    paticoAtado = si;
+    clearTimeout(paticoTimer);
+    if (!si) paticoTimer = setTimeout(paticoPasear, 1200);
+  }
+
+  window.Patico = {
+    plantarse: paticoPlantarse,
+    donde: paticoDonde,
+    correrA: (x, y, alLlegar) => paticoColocar(x, y, alLlegar, 2.6),
+    ocupar: paticoOcupar
+  };
 
   paticoPasear();
 

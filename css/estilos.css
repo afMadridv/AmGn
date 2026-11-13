@@ -993,6 +993,8 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 .pata--izq { left: 0;  animation: paso .38s ease-in-out infinite alternate; }
 .pata--der { right: 0; animation: paso .38s ease-in-out infinite alternate-reverse; }
 @keyframes paso { from { rotate: -20deg; } to { rotate: 20deg; } }
+/* Corriendo (jugando con el gato): las patas van al doble. */
+.patico.corriendo .pata, .patico.corriendo .pato-cuerpo { animation-duration: .18s; }
 
 /* ============================================================== BICHOS ===
    Los que vuelan sueltos cruzan el jardín en bucle, subiendo y bajando por
@@ -1102,7 +1104,7 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
 /* Efectos sueltos: se centran en su punto con `translate` y se animan con
    `transform` desde js/disparos.js. Por encima del tinte de la noche (450),
    que el fogonazo y el fantasma dan luz, no la reciben. */
-.fogonazo, .bala, .estallido, .chispa, .fantasma {
+.fogonazo, .bala, .estallido, .chispa, .fantasma, .gota {
   position: absolute;
   translate: -50% -50%;
   pointer-events: none;
@@ -2299,5 +2301,245 @@ img.svg-flor { user-select: none; -webkit-user-drag: none; }
     animation-delay: 0s !important;
     transition-duration: .12s !important;
   }
-  .patico { display: none; }
+  .patico, .gato { display: none; }
 }
+
+/* ================================================================= GATO ===
+   El gato atigrado (js/gato.js). Hecho como el patico: cajas redondeadas con
+   degradados, mirando a la derecha, y el mismo sistema de posición (--px,
+   --py, --lejos, --mira). Los estados son clases que pone el JS:
+   .quieto .corriendo .agazapado .zarpazo .pupilas-grandes .ojos-cerrados
+   .durmiendo .sobado .mojado .maullando .oculto .estirando               */
+.gato {
+  --base: #F4C47C; --raya: #C96828; --crema: #FDF2DF;
+  position: absolute;
+  left: var(--px, 70%);
+  bottom: var(--py, 12%);
+  width: clamp(52px, 14vw, 90px);
+  aspect-ratio: 1.3;
+  z-index: var(--capa, 360);
+  scale: var(--lejos, 1);
+  transform: scaleX(var(--mira, -1));
+  transition: left var(--paso, 3s) ease-in-out,
+              bottom var(--paso, 3s) ease-in-out,
+              scale var(--paso, 3s) ease-in-out,
+              opacity .3s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* Área de caricia algo mayor que el dibujo. */
+.gato::after { content: ''; position: absolute; inset: -18% -10% -6%; }
+.gato.oculto { opacity: 0; pointer-events: none; }
+.gato-salto { position: absolute; inset: 0; transform-origin: 50% 100%; }
+
+.gato-cola {
+  position: absolute; left: 10%; bottom: 46%;
+  width: 10%; height: 46%;
+  border-radius: 999px;
+  background: repeating-linear-gradient(0deg, var(--base) 0 17%, var(--raya) 17% 28%);
+  box-shadow: inset 0 6px 0 var(--crema);
+  transform-origin: 50% 100%;
+  rotate: -28deg;
+  animation: cola 2.2s ease-in-out infinite alternate;
+  transition: rotate .5s ease, bottom .5s ease;
+}
+@keyframes cola { from { rotate: -34deg; } to { rotate: -6deg; } }
+
+.gato-cuerpo {
+  position: absolute; left: 9%; bottom: 17%;
+  width: 64%; height: 44%;
+  border-radius: 52% 46% 42% 50% / 62% 60% 40% 38%;
+  background:
+    radial-gradient(ellipse 58% 42% at 58% 104%, var(--crema) 0 62%, transparent 64%),
+    repeating-linear-gradient(104deg, transparent 0 11%, var(--raya) 11% 16.5%),
+    linear-gradient(170deg, #f9d6a0, var(--base) 58%, #e6ad62);
+  animation: trote .3s ease-in-out infinite alternate;
+  transition: height .5s ease, bottom .5s ease;
+}
+@keyframes trote { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-6%) rotate(1.5deg); } }
+
+.gato-patas { position: absolute; left: 13%; bottom: 0; width: 58%; height: 24%; transition: opacity .3s; }
+.gpata {
+  position: absolute; bottom: 0;
+  width: 15%; height: 100%;
+  background: linear-gradient(var(--base) 0 60%, var(--crema) 60%);
+  border-radius: 40% 40% 48% 48%;
+  transform-origin: top center;
+}
+.gpata--a { left: 2%;  animation: gpaso .3s ease-in-out infinite alternate; }
+.gpata--b { left: 22%; animation: gpaso .3s ease-in-out infinite alternate-reverse; }
+.gpata--c { left: 62%; animation: gpaso .3s ease-in-out infinite alternate-reverse; }
+.gpata--d { left: 82%; animation: gpaso .3s ease-in-out infinite alternate; }
+@keyframes gpaso { from { rotate: -22deg; } to { rotate: 22deg; } }
+
+.gato-cabeza {
+  position: absolute; right: 2%; bottom: 38%;
+  width: 40%; aspect-ratio: 1.1;
+  border-radius: 50% 50% 46% 46% / 54% 54% 46% 46%;
+  background:
+    linear-gradient(var(--raya), var(--raya)) 50% 3% / 8% 24% no-repeat,
+    linear-gradient(var(--raya), var(--raya)) 35% 8% / 6% 15% no-repeat,
+    linear-gradient(var(--raya), var(--raya)) 65% 8% / 6% 15% no-repeat,
+    radial-gradient(circle at 40% 30%, #fbdcaa, var(--base) 60%, #e6ab5f);
+  transition: bottom .5s ease, rotate .5s ease;
+}
+.gato-oreja {
+  position: absolute; top: -24%;
+  width: 34%; height: 42%;
+  background: var(--base);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  transition: rotate .3s ease;
+}
+.gato-oreja::after {
+  content: ''; position: absolute; inset: 30% 24% 0;
+  background: #f2a6a0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.gato-oreja--izq { left: 4%;  rotate: -14deg; }
+.gato-oreja--der { right: 4%; rotate: 14deg; }
+
+.gato-ojo {
+  position: absolute; top: 34%;
+  width: 21%; height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #f6f4a6, #b8cf3f 68%, #7a9622);
+  box-shadow: 0 0 0 1.5px #5a3a22;
+  animation: parpadeo 4.6s infinite;
+}
+.gato-ojo--izq { left: 18%; }
+.gato-ojo--der { right: 18%; }
+.gato-pupila {
+  position: absolute; left: 50%; top: 50%;
+  width: 24%; height: 82%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: #1f150e;
+  transition: width .35s ease, height .35s ease;
+}
+.gato-pupila::after {
+  content: ''; position: absolute; top: 14%; right: -10%;
+  width: 34%; aspect-ratio: 1; border-radius: 50%; background: #fff;
+}
+.gato.pupilas-grandes .gato-pupila { width: 80%; height: 88%; }
+
+.gato-hocico {
+  position: absolute; left: 50%; bottom: 6%;
+  width: 46%; height: 36%;
+  translate: -50% 0;
+  border-radius: 50% 50% 46% 46%;
+  background: var(--crema);
+}
+.gato-nariz {
+  position: absolute; left: 50%; top: 6%;
+  width: 24%; height: 22%;
+  translate: -50% 0;
+  background: #e8878a;
+  border-radius: 40% 40% 50% 50% / 30% 30% 70% 70%;
+}
+.gato-hocico::before, .gato-hocico::after {
+  content: ''; position: absolute; top: 30%;
+  width: 26%; height: 24%;
+  border-bottom: 1.5px solid #6b4a32;
+  border-radius: 0 0 50% 50%;
+}
+.gato-hocico::before { left: 24%; }
+.gato-hocico::after  { left: 50%; }
+.gato-boca {
+  position: absolute; left: 50%; top: 52%;
+  width: 26%; height: 0;
+  translate: -50% 0;
+  border-radius: 40% 40% 50% 50%;
+  background: #9b3d45;
+  transition: height .12s ease;
+}
+.gato.maullando .gato-boca { height: 34%; }
+.gato-bigotes { position: absolute; inset: 0; }
+.gato-bigotes::before, .gato-bigotes::after {
+  content: ''; position: absolute; top: 74%;
+  width: 34%; height: 1.5px;
+  background: rgba(90, 58, 34, .55);
+  box-shadow: 0 4px 0 rgba(90, 58, 34, .45);
+}
+.gato-bigotes::before { left: -16%; rotate: 8deg; }
+.gato-bigotes::after  { right: -16%; rotate: -8deg; }
+
+/* --- estados --- */
+.gato.quieto .gpata, .gato.quieto .gato-cuerpo { animation-play-state: paused; }
+.gato.corriendo .gpata, .gato.corriendo .gato-cuerpo { animation-duration: .15s; }
+.gato.corriendo .gato-cola { rotate: -70deg; animation: none; }
+
+/* Agazapado antes de saltar: pecho al suelo y el trasero meneándose. */
+.gato.agazapado .gato-cuerpo { animation: none; transform: translateY(18%) rotate(-6deg); }
+.gato.agazapado .gato-cabeza { bottom: 26%; }
+.gato.agazapado .gato-salto { animation: menear .2s ease-in-out infinite alternate; transform-origin: 80% 100%; }
+@keyframes menear { from { rotate: -2.5deg; } to { rotate: 2.5deg; } }
+
+.gato.zarpazo .gpata--d { animation: zarpa .34s ease-in-out infinite; }
+@keyframes zarpa { 0%, 100% { rotate: 0deg; } 50% { rotate: -75deg; } }
+
+.gato.ojos-cerrados .gato-ojo {
+  background: none; box-shadow: none; animation: none;
+  top: 44%; height: 12%;
+  border-bottom: 2px solid #5a3a22;
+  border-radius: 0 0 60% 60%;
+}
+.gato.ojos-cerrados .gato-pupila { display: none; }
+
+/* Dormido: hecho un ovillo, respirando despacio. */
+.gato.durmiendo .gato-patas { opacity: 0; }
+.gato.durmiendo .gato-cuerpo { height: 36%; bottom: 3%; animation: respira 3.2s ease-in-out infinite; }
+.gato.durmiendo .gato-cabeza { bottom: 6%; rotate: 10deg; }
+.gato.durmiendo .gato-cola { bottom: 6%; rotate: 76deg; animation: none; }
+@keyframes respira { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
+
+/* Sobado: cabeza que se frota, orejas hacia atrás. */
+.gato.sobado .gato-cabeza { animation: frotar .55s ease-in-out infinite alternate; }
+.gato.sobado .gato-oreja--izq { rotate: -34deg; }
+.gato.sobado .gato-oreja--der { rotate: 34deg; }
+.gato.sobado .gato-cola { animation-duration: .8s; }
+@keyframes frotar { from { rotate: -8deg; } to { rotate: 6deg; } }
+
+.gato.mojado .gato-salto { animation: sacudir .07s linear infinite alternate; }
+.gato.mojado .gato-oreja--izq { rotate: -50deg; }
+.gato.mojado .gato-oreja--der { rotate: 50deg; }
+@keyframes sacudir { from { translate: -4% 0; } to { translate: 4% 0; } }
+
+.gato.estirando .gato-cuerpo { animation: none; transform: scaleX(1.14) translateY(8%); }
+
+/* La flor a la que le dio un zarpazo. */
+.flor-plantada.zarandeada { animation: zarandeo .9s ease-in-out; }
+@keyframes zarandeo {
+  0%, 100% { rotate: 0deg; }
+  20% { rotate: -16deg; } 45% { rotate: 12deg; } 70% { rotate: -6deg; }
+}
+
+/* Agua de la pistola del patico. */
+.gota {
+  width: 7px; height: 9px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: radial-gradient(circle at 35% 30%, #fff, #9ad8ff 45%, #3a9be0);
+}
+.gota--chica { width: 4px; height: 5px; }
+
+/* Lo que dice o sueña: globos, zetas y corazones. */
+.globo-gato, .zeta, .corazoncito {
+  position: absolute;
+  translate: -50% -100%;
+  pointer-events: none;
+  z-index: 470;
+  white-space: nowrap;
+}
+.globo-gato {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .92);
+  color: #a0521d;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: clamp(.8rem, 2.8vw, 1rem);
+  box-shadow: 0 3px 10px rgba(80, 50, 30, .18);
+}
+.zeta { font-family: var(--serif); font-weight: 700; font-size: clamp(.8rem, 2.6vw, 1rem); color: #fff; text-shadow: 0 1px 4px rgba(40, 30, 60, .6); }
+.corazoncito { font-size: clamp(.8rem, 2.6vw, 1rem); color: #e0577b; }

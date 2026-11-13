@@ -324,4 +324,116 @@
     contexto();   // el audio se despierta dentro del mismo toque
     disparar(bicho);
   });
+
+  /* ------------------------------------------------- pistola de agua ------
+     Contra el gato (js/gato.js) no hay balas: la misma pistolita echa tres
+     chorritos de agua. Suena a "fsst" (ruido filtrado en agudo, a golpes)
+     y cada gota que llega salpica con un "plic". */
+  function chorrito() {
+    const a = contexto();
+    if (!a) return;
+    const largo = Math.floor(a.sampleRate * 0.08);
+    const buf = a.createBuffer(1, largo, a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < largo; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / largo);
+    for (let k = 0; k < 3; k++) {
+      const t = a.currentTime + k * 0.18;
+      const r = a.createBufferSource();
+      r.buffer = buf;
+      const f = a.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 2600 + k * 300; f.Q.value = 0.9;
+      const g = a.createGain();
+      g.gain.value = 0.5;
+      r.connect(f).connect(g).connect(a.destination);
+      r.start(t);
+    }
+  }
+
+  let ultimoPlic = 0;
+  function plic() {
+    const a = contexto();
+    if (!a || a.currentTime - ultimoPlic < 0.08) return;
+    ultimoPlic = a.currentTime;
+    const t = a.currentTime;
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(900 + Math.random() * 300, t);
+    o.frequency.exponentialRampToValueAtTime(2200, t + 0.05);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    o.connect(g).connect(a.destination);
+    o.start(t); o.stop(t + 0.1);
+  }
+
+  function gota(desde, hasta, alLlegar) {
+    const dx = hasta.x - desde.x, dy = hasta.y - desde.y;
+    const dist = Math.hypot(dx, dy);
+    const g = poner('gota', desde.x, desde.y);
+    const dur = Math.max(140, Math.min(420, dist / 1.8));
+    // Un arco suave: el agua sube un poco antes de caer sobre el blanco.
+    g.animate([
+      { transform: 'translate(0,0) scale(.6)' },
+      { transform: `translate(${(dx * .5).toFixed(1)}px,${(dy * .5 - 12).toFixed(1)}px) scale(1)`, offset: .5 },
+      { transform: `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) scale(.9)` }
+    ], { duration: dur, easing: 'linear' }).onfinish = () => {
+      g.remove();
+      salpicar(hasta);
+      if (alLlegar) alLlegar();
+    };
+  }
+
+  function salpicar(p) {
+    plic();
+    for (let i = 0; i < 5; i++) {
+      const ang = -Math.PI * (0.1 + Math.random() * 0.8);
+      const r = 10 + Math.random() * 14;
+      const c = poner('gota gota--chica', p.x, p.y);
+      c.animate([
+        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+        { transform: `translate(${(Math.cos(ang) * r).toFixed(1)}px,${(Math.sin(ang) * r + 10).toFixed(1)}px) scale(.4)`, opacity: 0 }
+      ], { duration: 380 + Math.random() * 160, easing: 'ease-out' }).onfinish = () => c.remove();
+    }
+  }
+
+  // Le echa agua a `objetivo` (el gato). `alMojar` se llama con la primera
+  // gota que le llega.
+  function mojar(objetivo, alMojar) {
+    const b0 = centro(objetivo);
+    if (window.Patico) Patico.plantarse(b0.x / jardin.offsetWidth * 100, 2400);
+    requestAnimationFrame(() => {
+      sacar(angulo(centro(patico), b0));
+      let avisado = false;
+      setTimeout(() => {
+        chorrito();
+        for (let k = 0; k < 3; k++) {
+          for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+              const h = centro(objetivo);
+              h.x += (Math.random() * 2 - 1) * 8;
+              h.y += (Math.random() * 2 - 1) * 8;
+              gota(centro(boca), h, () => {
+                if (!avisado) { avisado = true; if (alMojar) alMojar(); }
+              });
+            }, k * 180 + i * 40);
+          }
+        }
+        guardarLuego();
+      }, 210);
+    });
+  }
+
+  // El gato atrapó un bicho al vuelo: se encoge en su zarpa y sale el angelito.
+  function atrapado(bicho) {
+    if (!bicho || bicho.classList.contains('herido')) return false;
+    bicho.classList.add('herido');
+    if (window.Bichos && Bichos.abatido) Bichos.abatido(bicho);
+    fantasma(bicho, centro(bicho));
+    bicho.animate([{ scale: '1', opacity: 1 }, { scale: '.2', opacity: 0 }],
+                  { duration: 320, fill: 'forwards' }).onfinish = () => bicho.remove();
+    return true;
+  }
+
+  window.Disparos = { contexto, centro, mojar, atrapado };
 })();
